@@ -3,12 +3,15 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Provider as ReduxProvider } from 'react-redux';
 
 import { ToastProvider } from '@/components/ui';
+import { loadStoredTokens } from '@/lib/token-storage';
+import { store } from '@/store';
 import { AppProvider } from '@/store/app';
 import { AppFonts, AppThemeProvider, useTheme } from '@/theme';
 
@@ -16,27 +19,38 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts(AppFonts);
+  const [tokensReady, setTokensReady] = useState(false);
+
+  // Read the saved session into memory before the first API call, so RTK
+  // Query sends the rider's token from the very first request.
+  useEffect(() => {
+    loadStoredTokens().finally(() => setTokensReady(true));
+  }, []);
+
+  const fontsReady = loaded || Boolean(error);
 
   const onReady = useCallback(() => {
-    if (loaded || error) SplashScreen.hideAsync();
-  }, [loaded, error]);
+    if (fontsReady && tokensReady) SplashScreen.hideAsync();
+  }, [fontsReady, tokensReady]);
 
-  // Keep the splash up until Poppins is resolved, so no frame renders in the
-  // system font and then reflows.
-  if (!loaded && !error) return null;
+  // Keep the splash up until Poppins and the saved session are resolved, so no
+  // frame renders in the system font and then reflows.
+  if (!fontsReady || !tokensReady) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onReady}>
-      <SafeAreaProvider>
-        <AppThemeProvider>
-          <AppProvider>
-            <ToastProvider>
-              <ThemedShell />
-            </ToastProvider>
-          </AppProvider>
-        </AppThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ReduxProvider store={store}>
+      <GestureHandlerRootView style={{ flex: 1 }} onLayout={onReady}>
+        <SafeAreaProvider>
+          <AppThemeProvider>
+            <AppProvider>
+              <ToastProvider>
+                <ThemedShell />
+              </ToastProvider>
+            </AppProvider>
+          </AppThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ReduxProvider>
   );
 }
 
