@@ -3,43 +3,69 @@ import { View, type ViewStyle } from 'react-native';
 import { FontFamily, FontSize, Radius, Spacing, useColors } from '@/theme';
 import { Text } from './Text';
 
-/** Delivery lifecycle states used across the app. */
+/**
+ * Delivery lifecycle states — the backend's vocabulary, one to one
+ * (delivery/choices.ts on the Kool backend).
+ */
 export type DeliveryStatus =
-  | 'awaiting_pickup'
+  | 'pending'
+  | 'assigned'
+  | 'travelling_to_pickup'
+  | 'picked_up'
   | 'in_transit'
   | 'delivered'
+  | 'confirmed'
+  | 'delivered_with_issue'
+  | 'disputed'
   | 'cancelled'
-  | 'pending'
+  | 'returned'
   | 'failed';
 
+/** Rider-facing labels (shorter than the backend's status_display). */
 export const StatusLabels: Record<DeliveryStatus, string> = {
-  awaiting_pickup: 'Awaiting Pickup',
-  in_transit: 'In Transit',
+  pending: 'Awaiting rider',
+  assigned: 'Assigned',
+  travelling_to_pickup: 'To pickup',
+  picked_up: 'Picked up',
+  in_transit: 'In transit',
   delivered: 'Delivered',
+  confirmed: 'Confirmed',
+  delivered_with_issue: 'Delivered · issue',
+  disputed: 'Disputed',
   cancelled: 'Cancelled',
-  pending: 'Pending',
+  returned: 'Returned',
   failed: 'Failed',
 };
+
+export function statusLabel(status: string): string {
+  return StatusLabels[status as DeliveryStatus] ?? status.replace(/_/g, ' ');
+}
 
 export function StatusPill({
   status,
   size = 'md',
   style,
 }: {
-  status: DeliveryStatus;
+  status: DeliveryStatus | string;
   size?: 'sm' | 'md';
   style?: ViewStyle;
 }) {
   const c = useColors();
   const map: Record<DeliveryStatus, { fg: string; bg: string }> = {
-    awaiting_pickup: { fg: c.warning, bg: c.warningSoft },
+    pending: { fg: c.textSecondary, bg: c.surfaceSunken },
+    assigned: { fg: c.warning, bg: c.warningSoft },
+    travelling_to_pickup: { fg: c.warning, bg: c.warningSoft },
+    picked_up: { fg: c.info, bg: c.infoSoft },
     in_transit: { fg: c.info, bg: c.infoSoft },
     delivered: { fg: c.success, bg: c.successSoft },
+    confirmed: { fg: c.success, bg: c.successSoft },
+    delivered_with_issue: { fg: c.warning, bg: c.warningSoft },
+    disputed: { fg: c.danger, bg: c.dangerSoft },
     cancelled: { fg: c.danger, bg: c.dangerSoft },
-    pending: { fg: c.textSecondary, bg: c.surfaceSunken },
+    returned: { fg: c.textSecondary, bg: c.surfaceSunken },
     failed: { fg: c.danger, bg: c.dangerSoft },
   };
-  const tone = map[status];
+  const tone = map[status as DeliveryStatus] ?? map.pending;
 
   return (
     <View
@@ -61,8 +87,29 @@ export function StatusPill({
           fontSize: size === 'sm' ? FontSize.xs : FontSize.sm,
         }}
       >
-        {StatusLabels[status]}
+        {statusLabel(status)}
       </Text>
+    </View>
+  );
+}
+
+/** Small "Delayed" / warning tag for a delivery past its expected time. */
+export function DelayBadge({ label = 'Delayed', style }: { label?: string; style?: ViewStyle }) {
+  const c = useColors();
+  return (
+    <View
+      style={[
+        {
+          alignSelf: 'flex-start',
+          backgroundColor: c.dangerSoft,
+          borderRadius: Radius.pill,
+          paddingHorizontal: Spacing.sm,
+          paddingVertical: 3,
+        },
+        style,
+      ]}
+    >
+      <Text style={{ color: c.danger, fontFamily: FontFamily.semibold, fontSize: FontSize.xs }}>{label}</Text>
     </View>
   );
 }

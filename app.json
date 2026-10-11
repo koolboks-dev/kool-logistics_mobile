@@ -8,12 +8,18 @@
     "scheme": "koollogistics",
     "userInterfaceStyle": "automatic",
     "android": {
+      "package": "com.koolboks.logistics",
       "adaptiveIcon": {
         "backgroundColor": "#F57D1C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA"
+      ],
       "predictiveBackGestureEnabled": false,
       "backgroundColor": "#FFFFFF"
     },
@@ -39,14 +45,20 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "KOOL Logistics uses the camera to scan waybill QR codes on packages.",
+          "cameraPermission": "KOOL Logistics uses the camera to scan waybill QR codes and take proof-of-delivery photos.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "KOOL Logistics needs photo access so you can upload an image of a waybill QR code."
+          "photosPermission": "KOOL Logistics needs photo access to upload waybill QR codes or proof-of-delivery photos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "KOOL Logistics shares your live location with retailers and dispatch while you are on duty or delivering an order."
         }
       ]
     ],
@@ -55,7 +67,13 @@
       "reactCompiler": true
     },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.koolboks.logistics",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "KOOL Logistics shares your live location with retailers and dispatch while you are on duty or delivering an order.",
+        "NSCameraUsageDescription": "KOOL Logistics uses the camera to scan waybill QR codes and take proof-of-delivery photos.",
+        "NSPhotoLibraryUsageDescription": "KOOL Logistics needs photo access to upload waybill QR codes or proof-of-delivery photos."
+      }
     },
     "backgroundColor": "#FFFFFF"
   }

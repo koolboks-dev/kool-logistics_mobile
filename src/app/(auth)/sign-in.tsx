@@ -1,12 +1,12 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Input, Text, useToast } from '@/components/ui';
-import { useApp } from '@/store/app';
+import { useSession } from '@/store/session';
 import { Layout, LogoRatio, Motion, Spacing, useTheme } from '@/theme';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -14,7 +14,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function SignIn() {
   const router = useRouter();
   const { mode, colors } = useTheme();
-  const { signIn } = useApp();
+  const { signIn, notice, clearNotice, mustChangePassword } = useSession();
   const insets = useSafeAreaInsets();
   const toast = useToast();
 
@@ -24,7 +24,13 @@ export default function SignIn() {
   const [passwordError, setPasswordError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
-  const submit = () => {
+  useEffect(() => {
+    if (notice) {
+      toast.show(notice, 'error');
+    }
+  }, [notice, toast]);
+
+  const submit = async () => {
     let ok = true;
 
     if (!EMAIL_RE.test(email.trim())) {
@@ -38,11 +44,24 @@ export default function SignIn() {
     if (!ok) return;
 
     setBusy(true);
-    setTimeout(() => {
-      signIn(email.trim());
+    clearNotice();
+    try {
+      const res = await signIn(email.trim(), password);
+      setBusy(false);
+      if (!res.ok) {
+        toast.show(res.message, 'error');
+        return;
+      }
       toast.show('Welcome back', 'success');
-      router.replace('/(tabs)/home');
-    }, 700);
+      if (mustChangePassword) {
+        router.replace('/(auth)/change-password' as any);
+      } else {
+        router.replace('/(tabs)/home');
+      }
+    } catch {
+      setBusy(false);
+      toast.show('Sign in failed. Check your network and try again.', 'error');
+    }
   };
 
   return (
@@ -70,7 +89,21 @@ export default function SignIn() {
 
           <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)}>
             <Text variant="title">Hi there 👋</Text>
+            <Text variant="caption" tone="secondary">
+              Sign in with your Koolboks rider account
+            </Text>
           </Animated.View>
+
+          {notice && (
+            <Animated.View
+              entering={FadeInDown.duration(Motion.base)}
+              style={[styles.noticeBox, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}
+            >
+              <Text variant="caption" style={{ color: colors.danger }}>
+                {notice}
+              </Text>
+            </Animated.View>
+          )}
 
           <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)} style={styles.form}>
             <Input
@@ -106,6 +139,15 @@ export default function SignIn() {
               returnKeyType="go"
               onSubmitEditing={submit}
             />
+
+            <Pressable
+              onPress={() => router.push('/(auth)/forgot-password' as any)}
+              style={{ alignSelf: 'flex-end', paddingVertical: Spacing.xs }}
+            >
+              <Text variant="caption" tone="brand">
+                Forgot password?
+              </Text>
+            </Pressable>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={styles.action}>
@@ -125,6 +167,11 @@ const styles = StyleSheet.create({
     maxWidth: Layout.maxContentWidth,
     width: '100%',
     alignSelf: 'center',
+  },
+  noticeBox: {
+    padding: Spacing.md,
+    borderRadius: Spacing.sm,
+    borderWidth: 1,
   },
   form: { gap: Spacing.lg },
   action: { marginTop: Spacing.md },

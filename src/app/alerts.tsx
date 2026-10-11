@@ -11,35 +11,60 @@ import {
   Divider,
   EmptyState,
   ScreenScroll,
-  StatusPill,
   SwipeableRow,
   Text,
   useToast,
 } from '@/components/ui';
-import type { AppNotification } from '@/data/orders';
-import { useApp } from '@/store/app';
+import { dayTime } from '@/lib/delivery';
+import {
+  notificationDeliveryId,
+  useMarkAllNotificationsReadMutation,
+  useMarkNotificationReadMutation,
+  useNotificationsQuery,
+  type AppNotification,
+} from '@/store/notifications-api';
 import { Motion, Radius, Spacing, useTheme } from '@/theme';
 
-const META = {
-  delivery: { icon: 'cube-outline', label: 'Delivery' },
+const META: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
+  delivery: { icon: 'bicycle-outline', label: 'Delivery' },
   payment: { icon: 'card-outline', label: 'Payment' },
   system: { icon: 'information-circle-outline', label: 'System' },
-} as const;
+};
 
 export default function Alerts() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { notifications, unreadCount, markAllRead, markRead, removeNotification, orders } = useApp();
   const toast = useToast();
+
+  const { data, refetch, isFetching } = useNotificationsQuery({ pageSize: 50 });
+  const [markRead] = useMarkNotificationReadMutation();
+  const [markAllRead, { isLoading: markingAll }] = useMarkAllNotificationsReadMutation();
 
   const [selected, setSelected] = useState<AppNotification | null>(null);
 
-  const open = (n: AppNotification) => {
-    markRead(n.id);
+  const notifications = data?.items ?? [];
+  const unreadCount = data?.unread_count ?? 0;
+
+  const open = async (n: AppNotification) => {
+    if (!n.is_read) {
+      markRead(n.id).unwrap().catch(() => {});
+    }
+    const deliveryId = notificationDeliveryId(n);
+    if (deliveryId) {
+      router.push(`/order/${deliveryId}`);
+      return;
+    }
     setSelected(n);
   };
 
-  const related = selected?.orderId ? orders.find((o) => o.id === selected.orderId) : undefined;
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllRead().unwrap();
+      toast.show('All marked as read', 'success');
+    } catch {
+      toast.show('Could not mark all as read', 'error');
+    }
+  };
 
   return (
     <>
@@ -48,13 +73,13 @@ export default function Alerts() {
         onBack={() => router.back()}
         contentContainerStyle={styles.scroll}
         onRefresh={async () => {
-          await new Promise((r) => setTimeout(r, 700));
+          await refetch();
           toast.show('Notifications up to date', 'success');
         }}
         right={
           unreadCount > 0 ? (
-            <Text variant="caption" tone="brand" onPress={markAllRead}>
-              Mark all read
+            <Text variant="caption" tone="brand" onPress={handleMarkAllRead}>
+              {markingAll ? 'Marking…' : 'Mark all read'}
             </Text>
           ) : undefined
         }
@@ -63,92 +88,79 @@ export default function Alerts() {
           <EmptyState
             icon="notifications-off-outline"
             title="Nothing new"
-            description="Delivery and payment updates will appear here."
+            description="Delivery assignments, changes, and alerts will appear here."
           />
         ) : (
           <>
             <Text variant="caption" tone="secondary">
-              Swipe a card right to mark it read, left to remove it.
+              Swipe right to mark read. Tap any delivery notification to open the order.
             </Text>
 
             <Animated.View layout={LinearTransition.duration(Motion.base)} style={styles.list}>
               {notifications.map((n, i) => {
-                const meta = META[n.kind];
+                const meta = META[n.type] ?? META.system;
+                const dId = notificationDeliveryId(n);
                 return (
                   <Animated.View
                     key={n.id}
-                    entering={FadeInDown.delay(i * 60).duration(Motion.base)}
+                    entering={FadeInDown.delay(i * 35).duration(Motion.base)}
                     layout={LinearTransition.duration(Motion.base)}
                   >
                     <SwipeableRow
                       leftAction={
-                        n.read
+                        n.is_read
                           ? undefined
                           : {
                               icon: 'checkmark-done',
                               label: 'Read',
                               color: colors.success,
                               onPress: () => {
-                                markRead(n.id);
+                                markRead(n.id).unwrap().catch(() => {});
                                 toast.show('Marked as read', 'success');
                               },
                             }
                       }
-                      rightAction={{
-                        icon: 'trash-outline',
-                        label: 'Remove',
-                        color: colors.danger,
-                        onPress: () => {
-                          removeNotification(n.id);
-                          toast.show('Notification removed');
-                        },
-                      }}
                     >
                       <Pressable onPress={() => open(n)}>
-                        <Card
-                          variant="outlined"
-                          style={[
-                            styles.card,
-                            !n.read && { borderColor: colors.brand, backgroundColor: colors.brandSoft },
-                          ]}
-                        >
-                          <View style={styles.cardHead}>
-                          <View
-                            style={[
-                              styles.iconWell,
-                              { backgroundColor: n.read ? colors.surfaceAlt : colors.surface },
-                            ]}
-                          >
-                            <Ionicons
-                              name={meta.icon}
-                              size={18}
-                              color={n.read ? colors.textSecondary : colors.brand}
-                            />
+                        <Card style={{ borderColor: n.is_read ? colors.border : colors.brand }}>
+                          <View style={styles.cardRow}>
+                            <View
+                              style={[
+                                styles.iconWrap,
+                                {
+                                  backgroundColor: n.is_read ? colors.surfaceAlt : colors.brandSoft,
+                                },
+                              ]}
+                            >
+                              <Ionicons
+                                name={meta.icon}
+                                size={20}
+                                color={n.is_read ? colors.textSecondary : colors.brand}
+                              />
+                            </View>
+
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <View style={styles.head}>
+                                <Text variant="bodyStrong" numberOfLines={1}>
+                                  {n.title}
+                                </Text>
+                                {!n.is_read && <View style={[styles.dot, { backgroundColor: colors.brand }]} />}
+                              </View>
+                              <Text variant="caption" tone="secondary" numberOfLines={2}>
+                                {n.message}
+                              </Text>
+                              <View style={styles.footer}>
+                                <Text variant="caption" tone="muted">
+                                  {dayTime(n.created_at)}
+                                </Text>
+                                {dId ? (
+                                  <Text variant="caption" tone="brand" style={{ fontWeight: '600' }}>
+                                    View order →
+                                  </Text>
+                                ) : null}
+                              </View>
+                            </View>
                           </View>
-
-                          <View style={{ flex: 1, gap: 2 }}>
-                            <Text variant="bodyStrong" numberOfLines={1}>
-                              {n.title}
-                            </Text>
-                            <Text variant="caption" tone="secondary" numberOfLines={2}>
-                              {n.body}
-                            </Text>
-                          </View>
-
-                          {!n.read && <View style={[styles.dot, { backgroundColor: colors.brand }]} />}
-                        </View>
-
-                          <View style={styles.cardFoot}>
-                          <Text variant="caption" tone="muted">
-                            {meta.label}
-                          </Text>
-                          <Text variant="caption" tone="muted">
-                            ·
-                          </Text>
-                          <Text variant="caption" tone="muted">
-                            {n.time}
-                          </Text>
-                        </View>
                         </Card>
                       </Pressable>
                     </SwipeableRow>
@@ -160,61 +172,21 @@ export default function Alerts() {
         )}
       </ScreenScroll>
 
-      {/* Detail sheet */}
-      <BottomSheet visible={!!selected} onClose={() => setSelected(null)} title={selected?.title}>
-        {selected && (
-          <View style={{ gap: Spacing.base }}>
-            <View style={styles.sheetMeta}>
-              <Text variant="caption" tone="secondary">
-                {META[selected.kind].label} · {selected.time}
-              </Text>
-              {related && <StatusPill status={related.status} size="sm" />}
-            </View>
-
-            <Divider />
-
+      {/* Details bottom sheet for non-delivery notices */}
+      <BottomSheet visible={Boolean(selected)} onClose={() => setSelected(null)}>
+        {selected ? (
+          <View style={{ gap: Spacing.md, paddingBottom: Spacing.lg }}>
+            <Text variant="subheading">{selected.title}</Text>
             <Text variant="body" tone="secondary">
-              {selected.body}
+              {selected.message}
             </Text>
-
-            {related && (
-              <Card variant="filled">
-                <View style={{ gap: Spacing.xs }}>
-                  <Text variant="caption" tone="muted">
-                    {related.reference}
-                  </Text>
-                  <Text variant="bodyStrong">{related.buyer.name}</Text>
-                  <Text variant="caption" tone="secondary">
-                    {related.address.line}, {related.address.city}
-                  </Text>
-                </View>
-              </Card>
-            )}
-
-            {related && (
-              <Button
-                label="Open order"
-                icon="arrow-forward"
-                iconPosition="right"
-                onPress={() => {
-                  const id = related.id;
-                  setSelected(null);
-                  router.push(`/order/${id}`);
-                }}
-              />
-            )}
-
-            <Button
-              label="Remove notification"
-              variant="outline"
-              size="md"
-              onPress={() => {
-                removeNotification(selected.id);
-                setSelected(null);
-                toast.show('Notification removed');
-              }}
-            />
+            <Text variant="caption" tone="muted">
+              {dayTime(selected.created_at)}
+            </Text>
+            <Button label="Close" onPress={() => setSelected(null)} style={{ marginTop: Spacing.sm }} />
           </View>
+        ) : (
+          <View />
         )}
       </BottomSheet>
     </>
@@ -223,11 +195,10 @@ export default function Alerts() {
 
 const styles = StyleSheet.create({
   scroll: { gap: Spacing.base },
-  list: { gap: Spacing.md },
-  card: { gap: Spacing.md, borderRadius: Radius.lg },
-  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
-  iconWell: { width: 36, height: 36, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  dot: { width: 8, height: 8, borderRadius: 999, marginTop: 6 },
-  cardFoot: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  sheetMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
+  list: { gap: Spacing.sm },
+  cardRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
+  iconWrap: { width: 40, height: 40, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.xs },
 });

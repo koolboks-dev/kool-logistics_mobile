@@ -11,6 +11,7 @@ export * from './EmptyState';
 export * from './GlassBackButton';
 export * from './GlassSurface';
 export * from './IconButton';
+export * from './InAppBanner';
 export * from './Input';
 export * from './ListRow';
 export * from './OrderCard';

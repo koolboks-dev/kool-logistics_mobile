@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { ChevronMarkIcon } from '@/components/icons';
 import { Motion, Radius, Spacing, useColors } from '@/theme';
 import { Divider } from './Divider';
-import { StatusPill, type DeliveryStatus } from './StatusPill';
+import { DelayBadge, StatusPill, type DeliveryStatus } from './StatusPill';
 import { Text } from './Text';
 
 export type Order = {
@@ -17,6 +17,10 @@ export type Order = {
   amount?: string;
   date?: string;
   items?: number;
+  /** Secondary line under the address, e.g. "Due 14:30 · 3 items". */
+  meta?: string;
+  /** Shows the red "Delayed" tag next to the status. */
+  delayed?: boolean;
 };
 
 export function OrderCard({ order, onPress }: { order: Order; onPress?: () => void }) {
@@ -44,7 +48,10 @@ export function OrderCard({ order, onPress }: { order: Order; onPress?: () => vo
               {order.recipient}
             </Text>
           </View>
-          <StatusPill status={order.status} size="sm" />
+          <View style={{ alignItems: 'flex-end', gap: Spacing.xs }}>
+            <StatusPill status={order.status} size="sm" />
+            {order.delayed && <DelayBadge />}
+          </View>
         </View>
 
         <Divider />
@@ -60,6 +67,11 @@ export function OrderCard({ order, onPress }: { order: Order; onPress?: () => vo
             </Text>
           )}
         </View>
+        {order.meta ? (
+          <Text variant="caption" tone="muted" numberOfLines={1}>
+            {order.meta}
+          </Text>
+        ) : null}
       </Pressable>
     </Animated.View>
   );

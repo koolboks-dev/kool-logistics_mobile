@@ -12,7 +12,9 @@ import { Provider as ReduxProvider } from 'react-redux';
 import { ToastProvider } from '@/components/ui';
 import { loadStoredTokens } from '@/lib/token-storage';
 import { store } from '@/store';
-import { AppProvider } from '@/store/app';
+import { LocationProvider } from '@/store/location';
+import { RealtimeProvider } from '@/store/realtime';
+import { SessionProvider } from '@/store/session';
 import { AppFonts, AppThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -42,11 +44,15 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }} onLayout={onReady}>
         <SafeAreaProvider>
           <AppThemeProvider>
-            <AppProvider>
-              <ToastProvider>
-                <ThemedShell />
-              </ToastProvider>
-            </AppProvider>
+            <SessionProvider>
+              <RealtimeProvider>
+                <LocationProvider>
+                  <ToastProvider>
+                    <ThemedShell />
+                  </ToastProvider>
+                </LocationProvider>
+              </RealtimeProvider>
+            </SessionProvider>
           </AppThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

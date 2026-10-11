@@ -1,6 +1,6 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Image } from 'expo-image';
 import { Linking, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -16,17 +16,25 @@ import {
   Text,
 } from '@/components/ui';
 import { Company } from '@/data/site';
-import { useApp } from '@/store/app';
+import { useRiderMeQuery } from '@/store/rider-api';
+import { useSession } from '@/store/session';
 import { Layout, Motion, Spacing, useTheme, type ThemePreference } from '@/theme';
 
 export default function Account() {
   const router = useRouter();
   const { colors, preference, setPreference } = useTheme();
-  const { rider, signOut } = useApp();
+  const { user, signOut } = useSession();
+  const { data: meData, refetch } = useRiderMeQuery();
 
   const [push, setPush] = useState(true);
   const [sounds, setSounds] = useState(true);
   const [confirmOut, setConfirmOut] = useState(false);
+
+  const rider = meData?.rider;
+  const name = rider?.name || user?.name || 'Rider';
+  const email = rider?.email || user?.email || '—';
+  const phone = rider?.phone || user?.phone_number || '—';
+  const riderCode = rider?.rider_code ? `Rider ${rider.rider_code}` : 'Logistics Rider';
 
   return (
     <>
@@ -34,9 +42,10 @@ export default function Account() {
         title="Account"
         contentContainerStyle={styles.scroll}
         onRefresh={async () => {
-          await new Promise((r) => setTimeout(r, 600));
+          await refetch();
         }}
       >
+        {/* ---- Profile Card ---- */}
         <Animated.View entering={FadeInDown.duration(Motion.base)}>
           <Card padded={false} style={styles.profileCard}>
             <View style={styles.banner}>
@@ -50,21 +59,65 @@ export default function Account() {
             </View>
 
             <View style={styles.profile}>
-              <Avatar name={rider?.name ?? 'Rider'} size={58} />
+              <Avatar name={name} size={58} uri={rider?.photo_url || undefined} />
               <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="subheading">{rider?.name ?? 'Rider'}</Text>
+                <Text variant="subheading">{name}</Text>
                 <Text variant="caption" tone="secondary">
-                  {rider?.id ?? '—'}
+                  {riderCode}
                 </Text>
                 <Text variant="caption" tone="muted">
-                  {rider?.hub ?? 'Unassigned hub'}
+                  {email} · {phone}
                 </Text>
               </View>
             </View>
           </Card>
         </Animated.View>
 
+        {/* ---- Vehicle & Territory ---- */}
         <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)} style={{ gap: Spacing.md }}>
+          <Text variant="label" tone="muted">
+            DISPATCH ASSIGNMENT
+          </Text>
+          <Card padded={false}>
+            <ListRow
+              icon="bicycle-outline"
+              title="Vehicle"
+              subtitle={
+                rider?.vehicle_registration
+                  ? `${rider.vehicle_type || 'Vehicle'} · ${rider.vehicle_registration}`
+                  : rider?.vehicle_type || 'Not assigned'
+              }
+            />
+            <Divider inset={Spacing.md} />
+            <ListRow
+              icon="map-outline"
+              title="Service regions"
+              subtitle={
+                rider?.service_cities && rider.service_cities.length > 0
+                  ? rider.service_cities.join(', ')
+                  : 'Lagos hubs'
+              }
+            />
+          </Card>
+        </Animated.View>
+
+        {/* ---- Security ---- */}
+        <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)} style={{ gap: Spacing.md }}>
+          <Text variant="label" tone="muted">
+            SECURITY
+          </Text>
+          <Card padded={false}>
+            <ListRow
+              icon="key-outline"
+              title="Change password"
+              subtitle="Update your account password"
+              onPress={() => router.push('/(auth)/change-password' as any)}
+            />
+          </Card>
+        </Animated.View>
+
+        {/* ---- Appearance ---- */}
+        <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={{ gap: Spacing.md }}>
           <Text variant="label" tone="muted">
             APPEARANCE
           </Text>
@@ -88,28 +141,8 @@ export default function Account() {
           </Card>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)} style={{ gap: Spacing.md }}>
-          <Text variant="label" tone="muted">
-            PREFERENCES
-          </Text>
-          <Card padded={false}>
-            <ListRow
-              icon="notifications-outline"
-              title="Push notifications"
-              subtitle="Delivery assignments and updates"
-              right={<Switch value={push} onChange={setPush} />}
-            />
-            <Divider inset={Spacing.md} />
-            <ListRow
-              icon="volume-medium-outline"
-              title="Sound & haptics"
-              subtitle="Feedback on scan and confirm"
-              right={<Switch value={sounds} onChange={setSounds} />}
-            />
-          </Card>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={{ gap: Spacing.md }}>
+        {/* ---- Support ---- */}
+        <Animated.View entering={FadeInDown.delay(240).duration(Motion.base)} style={{ gap: Spacing.md }}>
           <Text variant="label" tone="muted">
             SUPPORT
           </Text>
@@ -127,13 +160,18 @@ export default function Account() {
               subtitle={Company.phone}
               onPress={() => Linking.openURL(`tel:${Company.phoneDial}`).catch(() => {})}
             />
-
           </Card>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(240).duration(Motion.base)}>
+        {/* ---- Sign Out ---- */}
+        <Animated.View entering={FadeInDown.delay(300).duration(Motion.base)}>
           <Card padded={false}>
-            <ListRow icon="log-out-outline" title="Sign out" destructive onPress={() => setConfirmOut(true)} />
+            <ListRow
+              icon="log-out-outline"
+              title="Sign out"
+              destructive
+              onPress={() => setConfirmOut(true)}
+            />
           </Card>
         </Animated.View>
 
@@ -152,7 +190,7 @@ export default function Account() {
         onConfirm={() => {
           setConfirmOut(false);
           signOut();
-          router.replace('/(auth)/welcome');
+          router.replace('/(auth)/sign-in');
         }}
       />
     </>
@@ -163,6 +201,13 @@ const styles = StyleSheet.create({
   scroll: { gap: Spacing.xl },
   profileCard: { overflow: 'hidden' },
   banner: { height: 110 },
-  bannerScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.18)' },
+  bannerScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
   profile: { flexDirection: 'row', alignItems: 'center', gap: Spacing.base, padding: Spacing.base },
 });

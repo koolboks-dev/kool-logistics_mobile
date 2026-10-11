@@ -1,48 +1,88 @@
-import { Image } from 'expo-image';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { QrPatternIcon } from '@/components/icons';
 import {
   Avatar,
   Badge,
   Button,
+  Card,
   IconButton,
   OrderCard,
   StatCard,
+  Switch,
   Text,
   useToast,
 } from '@/components/ui';
+import { dropoffAddress, expectedLabel } from '@/lib/delivery';
 import { pickQrFromLibrary, tokenFromScan } from '@/lib/qr';
-import { useApp } from '@/store/app';
+import { useLocation } from '@/store/location';
+import { useUnreadCountQuery } from '@/store/notifications-api';
+import {
+  useAssignedDeliveriesQuery,
+  useRiderMeQuery,
+  useScanDeliveryMutation,
+  useSetAvailabilityMutation,
+} from '@/store/rider-api';
+import { useSession } from '@/store/session';
 import { Layout, Motion, Radius, Spacing, useTheme } from '@/theme';
 
 export default function Home() {
   const router = useRouter();
-  const { mode, colors } = useTheme();
-  const { rider, orders, unreadCount } = useApp();
-  const toast = useToast();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const toast = useToast();
+  const { user } = useSession();
 
-  const [refreshing, setRefreshing] = useState(false);
+  const { data: meData, refetch: refetchMe, isFetching: fetchingMe } = useRiderMeQuery();
+  const [setAvailability, { isLoading: togglingDuty }] = useSetAvailabilityMutation();
+
+  const {
+    data: activeDeliveries,
+    refetch: refetchActive,
+    isFetching: fetchingActive,
+  } = useAssignedDeliveriesQuery({ active: true });
+
+  const {
+    data: closedDeliveries,
+    refetch: refetchClosed,
+    isFetching: fetchingClosed,
+  } = useAssignedDeliveriesQuery({ active: false });
+
+  const { data: unreadCount = 0, refetch: refetchUnread } = useUnreadCountQuery();
+
+  const [scanDelivery, { isLoading: scanning }] = useScanDeliveryMutation();
+  const location = useLocation();
+
   const [decoding, setDecoding] = useState(false);
 
-  const stats = useMemo(() => {
-    const delivered = orders.filter((o) => o.status === 'delivered').length;
-    const today = orders.filter((o) => o.createdAt.startsWith('Today')).length;
-    const month = new Date().toLocaleDateString(undefined, { month: 'long' });
-    const active = orders.filter((o) => o.status === 'in_transit' || o.status === 'awaiting_pickup');
-    return {
-      delivered,
-      today,
-      month,
-      total: orders.length,
-      active,
-    };
-  }, [orders]);
+  const rider = meData?.rider;
+  const isAvailable = Boolean(rider?.is_available);
+  const activeCount = activeDeliveries?.length ?? 0;
+  const closedCount = closedDeliveries?.length ?? 0;
+
+  const onRefresh = async () => {
+    await Promise.all([
+      refetchMe(),
+      refetchActive(),
+      refetchClosed(),
+      refetchUnread(),
+      location.refreshPermission(),
+    ]);
+    toast.show('Deliveries up to date', 'success');
+  };
+
+  const toggleDuty = async (val: boolean) => {
+    try {
+      await setAvailability(val).unwrap();
+      toast.show(val ? 'You are now online' : 'You are now offline', 'info');
+    } catch {
+      toast.show('Could not update duty state. Please try again.', 'error');
+    }
+  };
 
   const uploadQr = async () => {
     setDecoding(true);
@@ -51,11 +91,13 @@ export default function Home() {
 
     if (result.ok) {
       const token = tokenFromScan(result.data);
-      const match = orders.find(
-        (o) => o.id === token || o.reference.toLowerCase().replace('#', '') === token,
-      );
-      if (match) router.push(`/order/${match.id}`);
-      else toast.show(`No order matches "${result.data.slice(0, 24)}"`, 'error');
+      try {
+        const outcome = await scanDelivery(token).unwrap();
+        if (outcome.warning) toast.show(outcome.warning, 'info');
+        router.push(`/order/${outcome.delivery_id}`);
+      } catch (err: any) {
+        toast.show(err?.data?.error?.message || `No delivery matches "${token}"`, 'error');
+      }
       return;
     }
     if (result.reason === 'permission') toast.show('Photo access is needed to read a QR image', 'error');
@@ -63,7 +105,24 @@ export default function Home() {
     else if (result.reason === 'error') toast.show('Could not read that image', 'error');
   };
 
-  const firstName = (rider?.name ?? 'Rider').split(' ')[0];
+  const firstName = (rider?.name || user?.first_name || user?.name || 'Rider').split(' ')[0];
+
+  const locationBadgeText = useMemo(() => {
+    if (location.state === 'sharing') {
+      const diff = location.lastSentAt ? Math.max(1, Math.round((Date.now() - location.lastSentAt) / 1000)) : 0;
+      return diff > 0 ? `Sharing location · updated ${diff}s ago` : 'Sharing location · GPS active';
+    }
+    if (location.state === 'denied' || location.state === 'needs_permission') {
+      return 'Location access required for deliveries';
+    }
+    if (location.state === 'services_off') {
+      return 'Device location services are off';
+    }
+    if (location.state === 'off') {
+      return 'Location off · go online to start';
+    }
+    return location.message || 'Location paused';
+  }, [location.state, location.lastSentAt, location.message]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -72,26 +131,21 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={fetchingMe || fetchingActive || fetchingClosed}
             tintColor={colors.brand}
             colors={[colors.brand]}
             progressViewOffset={insets.top + Spacing.sm}
-            onRefresh={() => {
-              setRefreshing(true);
-              setTimeout(() => {
-                setRefreshing(false);
-                toast.show('Deliveries up to date', 'success');
-              }, 900);
-            }}
+            onRefresh={onRefresh}
           />
         }
       >
-        {/* ---- Profile ---- */}
+        {/* ---- Profile & Header ---- */}
         <Animated.View entering={FadeIn.duration(Motion.slow)} style={styles.greeting}>
-          <Avatar name={rider?.name ?? 'Rider'} size={46} />
+          <Avatar name={rider?.name ?? 'Rider'} size={46} uri={rider?.photo_url ?? undefined} />
           <View style={{ flex: 1, gap: 1 }}>
             <Text variant="caption" tone="secondary">
-              {rider?.hub ?? 'Unassigned hub'}
+              {rider?.rider_code ? `Rider ${rider.rider_code}` : 'Logistics Rider'} ·{' '}
+              {rider?.service_cities?.slice(0, 2).join(', ') || 'Lagos'}
             </Text>
             <Text variant="subheading" numberOfLines={1}>
               Hi {firstName}
@@ -100,180 +154,234 @@ export default function Home() {
           <View>
             <IconButton
               icon="notifications-outline"
-              variant="glass"
-              onPress={() => router.push('/alerts')}
+              size={40}
               accessibilityLabel="Notifications"
+              onPress={() => router.push('/alerts')}
             />
             {unreadCount > 0 && (
-              <View style={styles.bellBadge} pointerEvents="none">
+              <View style={{ position: 'absolute', top: -2, right: -2 }}>
                 <Badge count={unreadCount} />
               </View>
             )}
           </View>
         </Animated.View>
 
-        <View style={styles.body}>
-          {/* ---- Overview ---- */}
-          <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)} style={styles.section}>
-            <View style={styles.sectionHead}>
-              <Text variant="heading">Overview</Text>
-              <Text variant="caption" tone="muted">
-                {stats.month}
-              </Text>
+        {/* ---- Duty & Availability Switch Card ---- */}
+        <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)}>
+          <Card
+            style={{
+              borderColor: isAvailable ? colors.brand : colors.border,
+              backgroundColor: isAvailable ? colors.surface : colors.surfaceSunken,
+            }}
+          >
+            <View style={styles.dutyRow}>
+              <View style={{ flex: 1, gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  <View
+                    style={[
+                      styles.dutyDot,
+                      { backgroundColor: isAvailable ? colors.success : colors.textMuted },
+                    ]}
+                  />
+                  <Text variant="bodyStrong">
+                    {isAvailable ? 'Online & Ready' : 'Offline'}
+                  </Text>
+                </View>
+                <Text variant="caption" tone="secondary">
+                  {isAvailable
+                    ? 'Receiving delivery assignments in your zone'
+                    : 'Switch on when you are ready to take deliveries'}
+                </Text>
+              </View>
+              <Switch value={isAvailable} onChange={toggleDuty} disabled={togglingDuty} />
             </View>
-            <View style={styles.statRow}>
-              <StatCard
-                icon="deliveries"
-                label="Total Deliveries"
-                value={String(stats.total)}
-                caption={`Month of ${stats.month}`}
-                trend="↑ 12%"
-                featured
-              />
-              <StatCard
-                icon="newTask"
-                label="New Task"
-                value={String(stats.today)}
-                caption="Today"
-                tone="info"
-              />
-            </View>
-          </Animated.View>
 
-          {/* ---- QR scanner ---- */}
-          <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={styles.section}>
-            <Text variant="heading">QR Scanner</Text>
-
+            {/* Location Sharing Status Sub-bar */}
             <View
               style={[
-                styles.qrPanel,
-                { backgroundColor: colors.brandSoft, borderColor: colors.brand, borderRadius: Radius.xl },
+                styles.locationBar,
+                {
+                  backgroundColor:
+                    location.state === 'sharing'
+                      ? colors.successSoft
+                      : location.state === 'denied' || location.state === 'services_off'
+                        ? colors.dangerSoft
+                        : colors.surfaceAlt,
+                  borderColor:
+                    location.state === 'sharing'
+                      ? colors.success
+                      : location.state === 'denied'
+                        ? colors.danger
+                        : colors.border,
+                },
               ]}
             >
-              <View style={[styles.qrWell, { backgroundColor: colors.surface }]}>
-                <QrPatternIcon size={124} color={mode === 'dark' ? colors.text : '#111519'} />
-              </View>
-
-              <View style={{ alignItems: 'center', gap: 2 }}>
-                <Text variant="subheading">Scan QR Code</Text>
-                <Text variant="caption" tone="secondary" center>
-                  Use your camera, or upload an image of the code
-                </Text>
-              </View>
-
-              <View style={styles.qrActions}>
-                <Button
-                  label="Use Camera"
-                  icon="camera-outline"
-                  size="md"
-                  fullWidth={false}
-                  onPress={() => router.push('/(tabs)/scan')}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  label={decoding ? 'Reading…' : 'Upload'}
-                  icon="image-outline"
-                  variant="outline"
-                  size="md"
-                  fullWidth={false}
-                  loading={decoding}
-                  onPress={uploadQr}
-                  style={{ flex: 1 }}
-                />
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* ---- Active deliveries ---- */}
-          <View style={styles.section}>
-            <View style={styles.sectionHead}>
-              <Text variant="heading">Active deliveries</Text>
-              <Text variant="caption" tone="brand" onPress={() => router.push('/(tabs)/orders')}>
-                See all
+              <Ionicons
+                name={
+                  location.state === 'sharing'
+                    ? 'navigate-circle'
+                    : location.state === 'denied'
+                      ? 'warning-outline'
+                      : 'location-outline'
+                }
+                size={16}
+                color={
+                  location.state === 'sharing'
+                    ? colors.success
+                    : location.state === 'denied'
+                      ? colors.danger
+                      : colors.textSecondary
+                }
+              />
+              <Text
+                variant="caption"
+                style={{
+                  flex: 1,
+                  color:
+                    location.state === 'sharing'
+                      ? colors.success
+                      : location.state === 'denied'
+                        ? colors.danger
+                        : colors.textSecondary,
+                }}
+                numberOfLines={1}
+              >
+                {locationBadgeText}
               </Text>
-            </View>
-
-            {stats.active.map((o, i) => (
-              <Animated.View key={o.id} entering={FadeInDown.delay(240 + i * 70).duration(Motion.base)}>
-                <OrderCard
-                  order={{
-                    id: o.id,
-                    reference: o.reference,
-                    recipient: o.buyer.name,
-                    address: `${o.address.line}, ${o.address.city}`,
-                    status: o.status,
-                    amount: o.total,
+              {(location.state === 'denied' || location.state === 'needs_permission') && (
+                <Pressable
+                  onPress={() => {
+                    if (location.canAskAgain) location.requestPermission();
+                    else location.openSettings();
                   }}
-                  onPress={() => router.push(`/order/${o.id}`)}
-                />
-              </Animated.View>
-            ))}
+                  hitSlop={8}
+                >
+                  <Text variant="caption" tone="brand" style={{ fontWeight: '600' }}>
+                    {location.canAskAgain ? 'Allow' : 'Settings'}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          </Card>
+        </Animated.View>
+
+        {/* ---- Stats ---- */}
+        <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)} style={styles.stats}>
+          <StatCard
+            label="Active tasks"
+            value={String(activeCount)}
+            icon="package"
+            caption={activeCount > 0 ? 'In progress' : 'All clear'}
+          />
+          <StatCard
+            label="Completed"
+            value={String(closedCount)}
+            icon="deliveries"
+            caption="Total delivered"
+          />
+        </Animated.View>
+
+        {/* ---- Active Deliveries List ---- */}
+        <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={styles.section}>
+          <View style={styles.sectionHead}>
+            <Text variant="label" tone="muted">
+              ACTIVE DELIVERIES ({activeCount})
+            </Text>
+            {activeCount > 0 && (
+              <Pressable onPress={() => router.push('/(tabs)/orders')} hitSlop={10}>
+                <Text variant="caption" tone="brand">
+                  View all
+                </Text>
+              </Pressable>
+            )}
           </View>
 
-          {/* ---- Brand footer ---- */}
-          <Animated.View entering={FadeInDown.delay(320).duration(Motion.base)}>
-            <View style={[styles.promo, { borderRadius: Radius.xl }]}>
-              <Image
-                source={require('@/assets/images/site/hero-2.jpg')}
-                style={StyleSheet.absoluteFill}
-                contentFit="cover"
-                transition={250}
-              />
-              <View style={styles.promoScrim} />
-              <View style={styles.promoCopy}>
-                <Text variant="label" style={styles.onBrandDim}>
-                  KOOL LOGISTICS
-                </Text>
-                <Text variant="subheading" style={styles.onBrand}>
-                  100,000+ packages delivered
-                </Text>
-                <Text variant="caption" style={styles.onBrandDim}>
-                  99% on-time across Nigeria and West Africa
+          {activeCount === 0 ? (
+            <Card variant="outlined" style={styles.emptyCard}>
+              <View style={styles.emptyInner}>
+                <Ionicons name="cube-outline" size={32} color={colors.textMuted} />
+                <Text variant="bodyStrong">No active deliveries right now</Text>
+                <Text variant="caption" tone="secondary" center>
+                  {isAvailable
+                    ? 'Stay online. New orders will pop up here as dispatch assigns them.'
+                    : 'Turn your duty status to Online to receive assignments.'}
                 </Text>
               </View>
+            </Card>
+          ) : (
+            <View style={{ gap: Spacing.md }}>
+              {activeDeliveries?.map((d) => (
+                <OrderCard
+                  key={d.delivery_id}
+                  order={{
+                    id: d.delivery_id,
+                    reference: d.order_number ? `#${d.order_number}` : d.delivery_id.slice(0, 8),
+                    recipient: d.customer?.name || d.dropoff?.name || 'Retailer',
+                    address: dropoffAddress(d),
+                    status: d.status,
+                    delayed: d.is_delayed,
+                    meta: `${expectedLabel(d)}${d.items_count ? ` · ${d.items_count} items` : ''}`,
+                  }}
+                  onPress={() => router.push(`/order/${d.delivery_id}`)}
+                />
+              ))}
             </View>
-          </Animated.View>
-        </View>
+          )}
+        </Animated.View>
+
+        {/* ---- Quick Actions ---- */}
+        <Animated.View entering={FadeInDown.delay(240).duration(Motion.base)} style={styles.section}>
+          <Text variant="label" tone="muted">
+            QUICK ACTIONS
+          </Text>
+          <View style={styles.actionRow}>
+            <Button
+              label="Scan Waybill Camera"
+              icon="qr-code-outline"
+              style={{ flex: 1 }}
+              onPress={() => router.push('/(tabs)/scan')}
+            />
+            <Button
+              label={decoding || scanning ? 'Reading…' : 'Pick QR Photo'}
+              icon="images-outline"
+              variant="outline"
+              loading={decoding || scanning}
+              style={{ flex: 1 }}
+              onPress={uploadQr}
+            />
+          </View>
+        </Animated.View>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: 160 },
-  greeting: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
+  scroll: {
     paddingHorizontal: Layout.screenPadding,
-  },
-  bellBadge: { position: 'absolute', top: -2, right: -4 },
-  onBrand: { color: '#FFFFFF' },
-  onBrandDim: { color: 'rgba(255,255,255,0.82)' },
-
-  body: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingTop: Spacing.xl,
-    gap: Spacing.xxl,
+    paddingBottom: Spacing.xxl,
+    gap: Spacing.lg,
     maxWidth: Layout.maxContentWidth,
     width: '100%',
     alignSelf: 'center',
   },
-  section: { gap: Spacing.md },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statRow: { flexDirection: 'row', gap: Spacing.md },
-
-  qrPanel: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    padding: Spacing.lg,
+  greeting: { flexDirection: 'row', alignItems: 'center', gap: Spacing.base },
+  dutyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
+  dutyDot: { width: 10, height: 10, borderRadius: 5 },
+  locationBar: {
+    marginTop: Spacing.md,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.base,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  qrWell: { padding: Spacing.md, borderRadius: Radius.md },
-  qrActions: { flexDirection: 'row', gap: Spacing.md, alignSelf: 'stretch' },
-
-  promo: { height: 132, overflow: 'hidden', justifyContent: 'flex-end' },
-  promoScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
-  promoCopy: { padding: Spacing.base, gap: 2 },
+  stats: { flexDirection: 'row', gap: Spacing.base },
+  section: { gap: Spacing.sm },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  emptyCard: { padding: Spacing.xl, alignItems: 'center', justifyContent: 'center' },
+  emptyInner: { alignItems: 'center', gap: Spacing.xs, maxWidth: 280 },
+  actionRow: { flexDirection: 'row', gap: Spacing.base },
 });
