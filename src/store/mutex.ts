@@ -3,7 +3,7 @@
  */
 export class Mutex {
   private locked = false;
-  private waiters: Array<() => void> = [];
+  private waiters: (() => void)[] = [];
 
   isLocked(): boolean {
     return this.locked;

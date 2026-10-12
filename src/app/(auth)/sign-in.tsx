@@ -54,7 +54,7 @@ export default function SignIn() {
       }
       toast.show('Welcome back', 'success');
       if (mustChangePassword) {
-        router.replace('/(auth)/change-password' as any);
+        router.replace('/(auth)/change-password');
       } else {
         router.replace('/(tabs)/home');
       }
@@ -141,7 +141,7 @@ export default function SignIn() {
             />
 
             <Pressable
-              onPress={() => router.push('/(auth)/forgot-password' as any)}
+              onPress={() => router.push('/(auth)/forgot-password')}
               style={{ alignSelf: 'flex-end', paddingVertical: Spacing.xs }}
             >
               <Text variant="caption" tone="brand">

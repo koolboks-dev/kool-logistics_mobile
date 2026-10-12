@@ -1,5 +1,5 @@
 import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import { StatusBar } from 'expo-status-bar';
@@ -14,7 +14,7 @@ import { loadStoredTokens } from '@/lib/token-storage';
 import { store } from '@/store';
 import { LocationProvider } from '@/store/location';
 import { RealtimeProvider } from '@/store/realtime';
-import { SessionProvider } from '@/store/session';
+import { SessionProvider, useSession } from '@/store/session';
 import { AppFonts, AppThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -60,8 +60,38 @@ export default function RootLayout() {
   );
 }
 
+/**
+ * Keeps the rider on the right side of the session: signed-out riders can only
+ * see the auth screens (and help), a forced password change blocks everything
+ * else, and signed-in riders never land back on the auth screens. This also
+ * covers a session that ends mid-use (refresh token rejected).
+ */
+function useSessionGuard() {
+  const { status, mustChangePassword } = useSession();
+  const segments = useSegments() as string[];
+  const router = useRouter();
+  const top = segments[0];
+  const sub = segments[1];
+
+  useEffect(() => {
+    if (status === 'booting' || status === 'offline') return;
+    const inAuth = top === '(auth)';
+    const onChangePassword = inAuth && sub === 'change-password';
+    if (status === 'signedOut') {
+      if (top !== undefined && !inAuth && top !== 'help') router.replace('/(auth)/welcome');
+      return;
+    }
+    if (mustChangePassword) {
+      if (!onChangePassword) router.replace('/(auth)/change-password');
+      return;
+    }
+    if (inAuth && !onChangePassword) router.replace('/(tabs)/home');
+  }, [status, mustChangePassword, top, sub, router]);
+}
+
 function ThemedShell() {
   const { mode, colors } = useTheme();
+  useSessionGuard();
 
   // The native root view keeps its default (white) background whatever the JS
   // tree paints, so any gap the app does not cover — safe-area strips,

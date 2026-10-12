@@ -71,7 +71,11 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const [canAskAgain, setCanAskAgain] = useState(true);
   const [servicesOn, setServicesOn] = useState(true);
   const [appActive, setAppActive] = useState(AppState.currentState === 'active');
-  const [pausedReason, setPausedReason] = useState<'not_on_duty' | 'inactive' | null>(null);
+  // A pause from the server lasts until the rider's duty state changes: it is
+  // remembered together with the duty state it was received in.
+  const dutyKey = `${isAvailable}:${activeCount}`;
+  const [pause, setPause] = useState<{ reason: 'not_on_duty' | 'inactive'; dutyKey: string } | null>(null);
+  const pausedReason = pause && pause.dutyKey === dutyKey ? pause.reason : null;
   const [running, setRunning] = useState<'starting' | 'sharing' | 'error'>('starting');
   const [lastSentAt, setLastSentAt] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -103,18 +107,18 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   // Permission can change in Settings while the app is away — re-check on return.
   useEffect(() => {
-    refreshPermission();
+    // Deferred a tick so the first permission read is not a synchronous
+    // state update inside the effect.
+    const first = setTimeout(refreshPermission, 0);
     const sub = AppState.addEventListener('change', (next) => {
       setAppActive(next === 'active');
       if (next === 'active') refreshPermission();
     });
-    return () => sub.remove();
+    return () => {
+      clearTimeout(first);
+      sub.remove();
+    };
   }, [refreshPermission]);
-
-  // A pause from the server lasts until the rider's duty state changes.
-  useEffect(() => {
-    setPausedReason(null);
-  }, [isAvailable, activeCount]);
 
   const shouldRun = wanted && permission === 'granted' && servicesOn && appActive && pausedReason === null;
 
@@ -125,8 +129,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let watch: Location.LocationSubscription | undefined;
-    setRunning('starting');
-    setMessage(null);
 
     Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 10_000, distanceInterval: 15 },
@@ -184,7 +186,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         } else if (res.reason === 'too_frequent') {
           schedule(res.retry_after_seconds ?? minInterval);
         } else if (res.reason === 'not_on_duty' || res.reason === 'inactive') {
-          setPausedReason(res.reason);
+          setPause({ reason: res.reason, dutyKey });
         } else {
           setRunning('error');
           setMessage('Your GPS position looked wrong — trying again.');
@@ -205,8 +207,11 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       if (timer) clearTimeout(timer);
       watch?.remove();
+      // Next run starts fresh.
+      setRunning('starting');
+      setMessage(null);
     };
-  }, [shouldRun, interval, minInterval, dispatch]);
+  }, [shouldRun, interval, minInterval, dispatch, dutyKey]);
 
   const state: SharingState = !wanted
     ? 'off'

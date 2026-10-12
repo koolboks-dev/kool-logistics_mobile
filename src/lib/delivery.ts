@@ -2,6 +2,7 @@
  * Rider-side helpers for deliveries: stage copy, timeline, time formatting,
  * and the call / WhatsApp / navigation hand-offs to other apps.
  */
+import type Ionicons from '@expo/vector-icons/Ionicons';
 import { Linking, Platform } from 'react-native';
 
 import type { TimelineStep } from '@/components/ui';
@@ -16,7 +17,10 @@ export const RIDER_ACTIVE: ReadonlySet<DeliveryStatus> = new Set([
 ]);
 
 /** Copy for the button that moves a delivery into `stage`. */
-export const STAGE_ACTIONS: Record<RiderStage, { label: string; icon: string; confirm: string; done: string }> = {
+export const STAGE_ACTIONS: Record<
+  RiderStage,
+  { label: string; icon: keyof typeof Ionicons.glyphMap; confirm: string; done: string }
+> = {
   travelling_to_pickup: {
     label: 'Start trip to pickup',
     icon: 'bicycle-outline',

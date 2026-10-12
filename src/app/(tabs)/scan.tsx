@@ -1,16 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState, Text, useToast } from '@/components/ui';
-import { pickQrFromLibrary, tokenFromScan } from '@/lib/qr';
-import { useScanDeliveryMutation } from '@/store/rider-api';
-import { Layout, Motion, Spacing, useTheme } from '@/theme';
+import { pickQrFromLibrary } from '@/lib/qr';
+import { useScanAndOpen } from '@/store/use-scan';
+import { Layout, Spacing, useTheme } from '@/theme';
 
 const FRAME = 210;
 
@@ -23,22 +21,8 @@ export default function Scan() {
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
   const [decoding, setDecoding] = useState(false);
-  const [scanDelivery, { isLoading: scanning }] = useScanDeliveryMutation();
+  const { resolve, scanning } = useScanAndOpen();
   const locked = useRef(false);
-
-  const resolve = async (raw: string) => {
-    const token = tokenFromScan(raw);
-    try {
-      const outcome = await scanDelivery(token).unwrap();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      if (outcome.warning) toast.show(outcome.warning, 'info');
-      router.push(`/order/${outcome.delivery_id}`);
-    } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      const msg = err?.data?.error?.message || `No delivery found for "${token}"`;
-      toast.show(msg, 'error');
-    }
-  };
 
   const onScanned = ({ data }: { data: string }) => {
     if (locked.current || scanning || decoding) return;
@@ -155,6 +139,19 @@ export default function Scan() {
           </View>
         </View>
       </View>
+
+      {/* The tab bar is hidden over the camera — this is the way out. */}
+      <View style={[styles.topRow, { paddingTop: insets.top + Spacing.sm }]} pointerEvents="box-none">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close scanner"
+          hitSlop={12}
+          onPress={() => router.navigate('/(tabs)/home')}
+          style={styles.closeBtn}
+        >
+          <Ionicons name="close" size={24} color="#FFF" />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -207,4 +204,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctrlBtnActive: { backgroundColor: '#F57D1C' },
+  topRow: { position: 'absolute', top: 0, right: 0, paddingHorizontal: Layout.screenPadding },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.38)',
+  },
 });

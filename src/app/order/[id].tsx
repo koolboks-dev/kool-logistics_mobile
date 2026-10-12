@@ -1,12 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -20,11 +20,11 @@ import {
   Button,
   Card,
   DelayBadge,
-  DetailRow,
   Dialog,
   Divider,
   EmptyState,
   Input,
+  PinInput,
   ScreenScroll,
   StatusPill,
   Switch,
@@ -42,6 +42,7 @@ import {
   STAGE_ACTIONS,
   stageTimeline,
 } from '@/lib/delivery';
+import { apiErrorCode, apiErrorDetails, apiErrorMessage, apiErrorStatus } from '@/store/base-api';
 import {
   PROBLEM_CATEGORIES,
   useAdvanceDeliveryMutation,
@@ -50,7 +51,30 @@ import {
   useUploadPodPhotoMutation,
   type RiderStage,
 } from '@/store/rider-api';
-import { Layout, Motion, Radius, Spacing, useColors, useTheme } from '@/theme';
+import { Motion, Radius, Spacing, useTheme } from '@/theme';
+
+/** Backend limit is 6 MB of image bytes; stay well under it. */
+const MAX_POD_BYTES = 5 * 1024 * 1024;
+
+/** Resize + JPEG-compress a photo until it fits the upload limit. */
+async function compressPhoto(uri: string, width: number): Promise<{ uri: string; base64: string }> {
+  const attempts = [
+    { maxWidth: 1600, compress: 0.7 },
+    { maxWidth: 1280, compress: 0.55 },
+    { maxWidth: 1024, compress: 0.45 },
+  ];
+  let last: { uri: string; base64: string } | null = null;
+  for (const a of attempts) {
+    const ctx = ImageManipulator.manipulate(uri);
+    if (width > a.maxWidth) ctx.resize({ width: a.maxWidth });
+    const img = await ctx.renderAsync();
+    const out = await img.saveAsync({ compress: a.compress, format: SaveFormat.JPEG, base64: true });
+    last = { uri: out.uri, base64: out.base64 ?? '' };
+    if (last.base64 && (last.base64.length * 3) / 4 <= MAX_POD_BYTES) return last;
+  }
+  if (!last?.base64) throw new Error('compress_failed');
+  throw new Error('too_large');
+}
 
 export default function OrderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -58,15 +82,20 @@ export default function OrderDetail() {
   const { colors } = useTheme();
   const toast = useToast();
 
-  const { data: delivery, isLoading, refetch, isFetching } = useDeliveryQuery(id);
+  const { data: delivery, isLoading, refetch, error: loadError } = useDeliveryQuery(id);
   const [advanceDelivery, { isLoading: advancing }] = useAdvanceDeliveryMutation();
   const [uploadPodPhoto, { isLoading: uploadingPhoto }] = useUploadPodPhotoMutation();
   const [reportProblem, { isLoading: reportingProblem }] = useReportProblemMutation();
 
   // Complete delivery modal state
   const [showCompleteModal, setShowCompleteModal] = useState(false);
-  const [podPhotoBase64, setPodPhotoBase64] = useState<string>('');
   const [podPhotoUri, setPodPhotoUri] = useState<string>('');
+  /** Uploaded once on capture, reused for every submit attempt. */
+  const [podPhotoUrl, setPodPhotoUrl] = useState<string>('');
+  const [photoError, setPhotoError] = useState<string>();
+  const [codeError, setCodeError] = useState<string>();
+  const [nameError, setNameError] = useState<string>();
+  const [confirmStage, setConfirmStage] = useState<RiderStage | null>(null);
   const [deliveryCode, setDeliveryCode] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [podNote, setPodNote] = useState('');
@@ -87,12 +116,19 @@ export default function OrderDetail() {
   }
 
   if (!delivery) {
+    const gone = apiErrorStatus(loadError) === 404;
     return (
-      <ScreenScroll title="Delivery" onBack={() => router.back()}>
+      <ScreenScroll title="Delivery" onBack={() => router.back()} onRefresh={async () => {
+        await refetch();
+      }}>
         <EmptyState
-          icon="alert-circle-outline"
-          title="Delivery not found"
-          description={`No delivery matches "${id}".`}
+          icon={gone ? 'swap-horizontal-outline' : 'cloud-offline-outline'}
+          title={gone ? 'Not assigned to you' : 'Could not load this delivery'}
+          description={
+            gone
+              ? 'This delivery does not exist or is no longer assigned to you. Dispatch may have reassigned it.'
+              : apiErrorMessage(loadError)
+          }
           actionLabel="Back to deliveries"
           onAction={() => router.replace('/(tabs)/orders')}
         />
@@ -103,108 +139,127 @@ export default function OrderDetail() {
   const nextStage = delivery.next_status;
   const stageAction = nextStage ? STAGE_ACTIONS[nextStage] : null;
 
-  const onAdvancePress = async () => {
-    if (!nextStage) return;
-
-    if (nextStage === 'delivered') {
+  const runStage = async (stage: RiderStage) => {
+    if (stage === 'delivered') {
       setShowCompleteModal(true);
       return;
     }
-
     try {
-      await advanceDelivery({ id: delivery.delivery_id, target: nextStage }).unwrap();
-      toast.show(stageAction?.done || 'Status updated', 'success');
-    } catch (err: any) {
-      toast.show(err?.data?.error?.message || 'Could not update status. Try again.', 'error');
+      await advanceDelivery({ id: delivery.delivery_id, target: stage }).unwrap();
+      setConfirmStage(null);
+      toast.show(STAGE_ACTIONS[stage].done, 'success');
+    } catch (err) {
+      setConfirmStage(null);
+      if (apiErrorCode(err) === 'illegal_transition') refetch();
+      toast.show(apiErrorMessage(err, 'Could not update status. Try again.'), 'error');
     }
   };
 
-  const pickPodImage = async (useCamera: boolean) => {
-    try {
-      const result = useCamera
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            quality: 0.8,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            quality: 0.8,
-          });
+  const onAdvancePress = () => {
+    if (!nextStage) return;
+    if (nextStage === 'delivered') setShowCompleteModal(true);
+    else setConfirmStage(nextStage);
+  };
 
+  // From "assigned" the rider may skip the trip step if already at the store.
+  const canSkipToPickup =
+    nextStage === 'travelling_to_pickup' && delivery.allowed_actions.includes('picked_up');
+
+  const pickPodImage = async (useCamera: boolean) => {
+    setPhotoError(undefined);
+    try {
+      const perm = useCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setPhotoError(useCamera ? 'Camera access is needed to take the proof photo.' : 'Photo access is needed.');
+        return;
+      }
+      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8, exif: false };
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
       if (result.canceled || !result.assets[0]?.uri) return;
 
       const asset = result.assets[0];
-      const manip = await ImageManipulator.manipulateAsync(
-        asset.uri,
-        [{ resize: { width: 1200 } }],
-        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true },
-      );
+      const photo = await compressPhoto(asset.uri, asset.width || 4000);
+      setPodPhotoUri(photo.uri);
+      setPodPhotoUrl('');
 
-      if (manip.base64) {
-        setPodPhotoUri(manip.uri);
-        setPodPhotoBase64(manip.base64);
-      }
-    } catch {
-      toast.show('Could not capture photo. Check permissions and try again.', 'error');
+      const res = await uploadPodPhoto({
+        id: delivery.delivery_id,
+        filename: `pod-${Date.now()}.jpg`,
+        content_type: 'image/jpeg',
+        data_base64: photo.base64,
+      }).unwrap();
+      setPodPhotoUrl(res.url);
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.message === 'too_large'
+          ? 'That photo is too large even after compressing. Take another one.'
+          : apiErrorMessage(err, 'Could not upload the photo. Try again.');
+      setPhotoError(msg);
     }
   };
 
   const submitCompleteDelivery = async () => {
-    if (!podPhotoBase64) {
-      toast.show('Proof of delivery photo is required', 'error');
-      return;
+    let ok = true;
+    if (!podPhotoUrl) {
+      setPhotoError(uploadingPhoto ? 'Wait for the photo to finish uploading.' : 'Take a proof-of-delivery photo.');
+      ok = false;
     }
-    if (!deliveryCode.trim() || deliveryCode.trim().length !== 4) {
-      toast.show('Enter the 4-digit delivery code from the retailer', 'error');
-      return;
+    if (!/^\d{4}$/.test(deliveryCode)) {
+      setCodeError('Enter the 4-digit code from the retailer.');
+      ok = false;
     }
     if (!recipientName.trim()) {
-      toast.show('Recipient name is required', 'error');
-      return;
+      setNameError('Who received the goods?');
+      ok = false;
     }
+    if (!ok) return;
 
     setCompleting(true);
     try {
-      // 1. Upload POD Photo
-      const photoRes = await uploadPodPhoto({
-        id: delivery.delivery_id,
-        filename: `pod_${Date.now()}.jpg`,
-        content_type: 'image/jpeg',
-        data_base64: podPhotoBase64,
-      }).unwrap();
-
-      // 2. Advance to delivered with POD details
       await advanceDelivery({
         id: delivery.delivery_id,
         target: 'delivered',
         body: {
-          pod_photo_url: photoRes.url,
-          delivery_code: deliveryCode.trim(),
+          pod_photo_url: podPhotoUrl,
+          delivery_code: deliveryCode,
           recipient_name: recipientName.trim(),
           pod_note: podNote.trim() || undefined,
         },
       }).unwrap();
-
-      setCompleting(false);
       setShowCompleteModal(false);
-      toast.show('Delivery marked completed!', 'success');
       router.replace(
-        `/result?status=delivered&ref=${encodeURIComponent(delivery.order_number || delivery.delivery_id)}`,
+        `/result?status=delivered&ref=${encodeURIComponent(delivery.order_number ? `Order #${delivery.order_number}` : 'The order')}`,
       );
-    } catch (err: any) {
-      setCompleting(false);
-      const code = err?.data?.error?.code;
-      const msg = err?.data?.error?.message;
+    } catch (err) {
+      const code = apiErrorCode(err);
+      const details = apiErrorDetails(err);
       if (code === 'wrong_code') {
-        const left = err?.data?.error?.attempts_left ?? delivery.code_attempts_left - 1;
-        toast.show(`Wrong code. ${left} attempts left before lock.`, 'error');
+        const left = typeof details.attempts_left === 'number' ? details.attempts_left : undefined;
+        setDeliveryCode('');
+        setCodeError(
+          left !== undefined
+            ? `Wrong code — ${left} attempt${left === 1 ? '' : 's'} left before it locks.`
+            : 'Wrong code. Check it with the retailer.',
+        );
       } else if (code === 'code_locked') {
-        toast.show('Delivery code is locked. Please contact dispatch.', 'error');
+        setShowCompleteModal(false);
+        toast.show('Too many wrong codes — the code is locked. Dispatch has been alerted.', 'error');
+      } else if (code === 'proof_required') {
+        const fields = (details.fields ?? {}) as Record<string, string>;
+        if (fields.pod_photo_url || fields.photo) setPhotoError(fields.pod_photo_url || fields.photo);
+        if (fields.delivery_code) setCodeError(fields.delivery_code);
+        if (fields.recipient_name) setNameError(fields.recipient_name);
+        if (!Object.keys(fields).length) toast.show(apiErrorMessage(err), 'error');
       } else {
-        toast.show(msg || 'Failed to complete delivery. Check code and details.', 'error');
+        if (code === 'illegal_transition') refetch();
+        toast.show(apiErrorMessage(err, 'Could not complete the delivery. Try again.'), 'error');
       }
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -223,14 +278,10 @@ export default function OrderDetail() {
 
       setShowProblemModal(false);
       setProblemDescription('');
-      toast.show('Problem report submitted to dispatch', 'info');
-      if (cannotComplete) {
-        router.replace(
-          `/result?status=cancelled&ref=${encodeURIComponent(delivery.order_number || delivery.delivery_id)}`,
-        );
-      }
-    } catch (err: any) {
-      toast.show(err?.data?.error?.message || 'Could not report problem. Try again.', 'error');
+      setCannotComplete(false);
+      toast.show('Reported — dispatch has been alerted', 'success');
+    } catch (err) {
+      toast.show(apiErrorMessage(err, 'Could not report the problem. Try again.'), 'error');
     }
   };
 
@@ -280,7 +331,19 @@ export default function OrderDetail() {
               <Text variant="heading">#{delivery.order_number || delivery.delivery_id.slice(0, 8)}</Text>
               <Text variant="caption" tone="secondary">
                 Assigned {dayTime(delivery.assigned_at)}
+                {delivery.items_count ? ` · ${delivery.items_count} item${delivery.items_count === 1 ? '' : 's'}` : ''}
               </Text>
+              {delivery.expected_delivery_at ? (
+                <Text variant="caption" tone={delivery.is_delayed ? 'danger' : 'secondary'}>
+                  {expectedLabel(delivery)}
+                  {delivery.is_delayed ? '' : ` · ${dayTime(delivery.expected_delivery_at)}`}
+                </Text>
+              ) : null}
+              {delivery.exception ? (
+                <Text variant="caption" tone="danger">
+                  Problem reported: {delivery.exception.reason || delivery.exception.note}
+                </Text>
+              ) : null}
             </View>
           </Card>
         </Animated.View>
@@ -309,9 +372,18 @@ export default function OrderDetail() {
                   label={advancing ? 'Updating…' : stageAction.label}
                   loading={advancing}
                   onPress={onAdvancePress}
-                  icon={stageAction.icon as any}
+                  icon={stageAction.icon}
+                  disabled={nextStage === 'delivered' && delivery.code_locked}
                   style={{ marginTop: Spacing.xs }}
                 />
+                {canSkipToPickup && (
+                  <Button
+                    label="Already at the store — confirm pickup"
+                    variant="ghost"
+                    size="md"
+                    onPress={() => setConfirmStage('picked_up')}
+                  />
+                )}
               </View>
             </Card>
           </Animated.View>
@@ -421,6 +493,21 @@ export default function OrderDetail() {
                     onPress={() => callPhone(delivery.customer?.phone || delivery.dropoff.phone)}
                   />
                 ) : null}
+                {delivery.customer?.phone || delivery.dropoff.phone ? (
+                  <Button
+                    label="WhatsApp"
+                    icon="logo-whatsapp"
+                    variant="outline"
+                    size="sm"
+                    style={{ flex: 1 }}
+                    onPress={() =>
+                      openWhatsApp(
+                        delivery.customer?.phone || delivery.dropoff.phone,
+                        `Hello, I am the Koolboks rider delivering order #${delivery.order_number}`,
+                      )
+                    }
+                  />
+                ) : null}
                 <Button
                   label="Navigate"
                   icon="navigate-outline"
@@ -487,9 +574,22 @@ export default function OrderDetail() {
         )}
       </ScreenScroll>
 
+      <Dialog
+        visible={confirmStage !== null}
+        onClose={() => setConfirmStage(null)}
+        title={confirmStage ? STAGE_ACTIONS[confirmStage].label : ''}
+        message={confirmStage ? STAGE_ACTIONS[confirmStage].confirm : undefined}
+        confirmLabel="Confirm"
+        loading={advancing}
+        onConfirm={() => confirmStage && runStage(confirmStage)}
+      />
+
       {/* ---- COMPLETE DELIVERY MODAL ---- */}
       <Modal visible={showCompleteModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
               <Text variant="title">Complete Delivery</Text>
@@ -511,10 +611,14 @@ export default function OrderDetail() {
                 {podPhotoUri ? (
                   <View style={{ alignItems: 'center', gap: Spacing.xs }}>
                     <Image source={{ uri: podPhotoUri }} style={styles.previewImage} contentFit="cover" />
+                    <Text variant="caption" tone={podPhotoUrl ? 'success' : 'secondary'}>
+                      {uploadingPhoto ? 'Uploading photo…' : podPhotoUrl ? 'Photo uploaded' : 'Photo not uploaded'}
+                    </Text>
                     <Button
-                      label="Retake Photo"
+                      label={podPhotoUrl ? 'Retake photo' : 'Try again'}
                       variant="ghost"
                       size="sm"
+                      disabled={uploadingPhoto}
                       onPress={() => pickPodImage(true)}
                     />
                   </View>
@@ -537,26 +641,43 @@ export default function OrderDetail() {
                 )}
               </View>
 
-              {/* 4-digit Code */}
-              <Input
-                label="4-digit retailer code *"
-                placeholder="1234"
-                keyboardType="number-pad"
-                maxLength={4}
-                value={deliveryCode}
-                onChangeText={setDeliveryCode}
-                leftIcon="key-outline"
-              />
-              <Text variant="caption" tone="muted">
-                Attempts left: {delivery.code_attempts_left}
-              </Text>
+              {photoError ? (
+                <Text variant="caption" tone="danger">
+                  {photoError}
+                </Text>
+              ) : null}
+
+              {/* 4-digit code the retailer received */}
+              <View style={{ gap: Spacing.xs }}>
+                <Text variant="label" tone="muted">
+                  RETAILER’S 4-DIGIT CODE *
+                </Text>
+                <PinInput
+                  length={4}
+                  secure={false}
+                  value={deliveryCode}
+                  onChange={(v) => {
+                    setDeliveryCode(v.replace(/\D/g, ''));
+                    setCodeError(undefined);
+                  }}
+                  error={codeError}
+                />
+                <Text variant="caption" tone="muted">
+                  Ask the retailer for the code in their Kool Konnect app. {delivery.code_attempts_left} attempt
+                  {delivery.code_attempts_left === 1 ? '' : 's'} left.
+                </Text>
+              </View>
 
               {/* Recipient name */}
               <Input
                 label="Recipient full name *"
                 placeholder="e.g. Amina Musa"
                 value={recipientName}
-                onChangeText={setRecipientName}
+                onChangeText={(t) => {
+                  setRecipientName(t);
+                  setNameError(undefined);
+                }}
+                error={nameError}
                 leftIcon="person-outline"
               />
 
@@ -569,19 +690,23 @@ export default function OrderDetail() {
               />
 
               <Button
-                label={completing ? 'Completing…' : 'Submit Handover'}
+                label={completing ? 'Completing…' : 'Submit handover'}
                 loading={completing}
+                disabled={uploadingPhoto}
                 onPress={submitCompleteDelivery}
                 style={{ marginTop: Spacing.sm }}
               />
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ---- REPORT PROBLEM MODAL ---- */}
       <Modal visible={showProblemModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
               <Text variant="title">Report a Problem</Text>
@@ -650,7 +775,7 @@ export default function OrderDetail() {
               />
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -670,7 +795,6 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalCard: {

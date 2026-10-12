@@ -32,13 +32,11 @@ export default function Orders() {
   const {
     data: activeList = [],
     refetch: refetchActive,
-    isFetching: fetchingActive,
   } = useAssignedDeliveriesQuery({ active: true });
 
   const {
     data: closedList = [],
     refetch: refetchClosed,
-    isFetching: fetchingClosed,
   } = useAssignedDeliveriesQuery({ active: false });
 
   const [segment, setSegment] = useState('active');

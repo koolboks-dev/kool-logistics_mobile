@@ -67,7 +67,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   /** Fetch whoami for the stored token and decide where the rider stands. */
   const loadSession = useCallback(async () => {
-    setStatus('booting');
     const req = dispatch(authApi.endpoints.whoAmI.initiate(undefined, { forceRefetch: true }));
     try {
       const who = await req.unwrap();
@@ -93,7 +92,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Restore the saved session once at start-up.
   useEffect(() => {
-    if (hasAccessToken()) loadSession();
+    if (!hasAccessToken()) return;
+    const t = setTimeout(loadSession, 0);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -152,7 +153,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       clearNotice: () => setNotice(null),
       signIn,
       signOut: (why?: string) => endSession(why),
-      retry: loadSession,
+      retry: () => {
+        setStatus('booting');
+        loadSession();
+      },
       passwordChanged: () => setForcedChange(false),
     }),
     [status, currentUser, forcedChange, notice, signIn, endSession, loadSession],

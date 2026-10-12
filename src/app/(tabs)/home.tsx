@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,17 +17,18 @@ import {
   Text,
   useToast,
 } from '@/components/ui';
-import { dropoffAddress, expectedLabel } from '@/lib/delivery';
-import { pickQrFromLibrary, tokenFromScan } from '@/lib/qr';
+import { ago, dropoffAddress, expectedLabel } from '@/lib/delivery';
+import { pickQrFromLibrary } from '@/lib/qr';
 import { useLocation } from '@/store/location';
 import { useUnreadCountQuery } from '@/store/notifications-api';
+import { useRealtime } from '@/store/realtime';
 import {
   useAssignedDeliveriesQuery,
   useRiderMeQuery,
-  useScanDeliveryMutation,
   useSetAvailabilityMutation,
 } from '@/store/rider-api';
 import { useSession } from '@/store/session';
+import { useScanAndOpen } from '@/store/use-scan';
 import { Layout, Motion, Radius, Spacing, useTheme } from '@/theme';
 
 export default function Home() {
@@ -37,14 +38,18 @@ export default function Home() {
   const toast = useToast();
   const { user } = useSession();
 
-  const { data: meData, refetch: refetchMe, isFetching: fetchingMe } = useRiderMeQuery();
+  // Live updates come over the socket; poll only while it is down.
+  const { connected } = useRealtime();
+  const pollingInterval = connected ? 0 : 60_000;
+
+  const { data: meData, refetch: refetchMe, isFetching: fetchingMe } = useRiderMeQuery(undefined, { pollingInterval });
   const [setAvailability, { isLoading: togglingDuty }] = useSetAvailabilityMutation();
 
   const {
     data: activeDeliveries,
     refetch: refetchActive,
     isFetching: fetchingActive,
-  } = useAssignedDeliveriesQuery({ active: true });
+  } = useAssignedDeliveriesQuery({ active: true }, { pollingInterval });
 
   const {
     data: closedDeliveries,
@@ -54,7 +59,7 @@ export default function Home() {
 
   const { data: unreadCount = 0, refetch: refetchUnread } = useUnreadCountQuery();
 
-  const [scanDelivery, { isLoading: scanning }] = useScanDeliveryMutation();
+  const { resolve: resolveScan, scanning } = useScanAndOpen();
   const location = useLocation();
 
   const [decoding, setDecoding] = useState(false);
@@ -79,6 +84,8 @@ export default function Home() {
     try {
       await setAvailability(val).unwrap();
       toast.show(val ? 'You are now online' : 'You are now offline', 'info');
+      // Going online means sharing location — explain before the OS prompt.
+      if (val && location.permission !== 'granted') router.push('/location-permission');
     } catch {
       toast.show('Could not update duty state. Please try again.', 'error');
     }
@@ -90,14 +97,7 @@ export default function Home() {
     setDecoding(false);
 
     if (result.ok) {
-      const token = tokenFromScan(result.data);
-      try {
-        const outcome = await scanDelivery(token).unwrap();
-        if (outcome.warning) toast.show(outcome.warning, 'info');
-        router.push(`/order/${outcome.delivery_id}`);
-      } catch (err: any) {
-        toast.show(err?.data?.error?.message || `No delivery matches "${token}"`, 'error');
-      }
+      await resolveScan(result.data);
       return;
     }
     if (result.reason === 'permission') toast.show('Photo access is needed to read a QR image', 'error');
@@ -107,22 +107,34 @@ export default function Home() {
 
   const firstName = (rider?.name || user?.first_name || user?.name || 'Rider').split(' ')[0];
 
-  const locationBadgeText = useMemo(() => {
-    if (location.state === 'sharing') {
-      const diff = location.lastSentAt ? Math.max(1, Math.round((Date.now() - location.lastSentAt) / 1000)) : 0;
-      return diff > 0 ? `Sharing location · updated ${diff}s ago` : 'Sharing location · GPS active';
+  // Re-render every 5 s so "updated 12s ago" stays honest.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (location.state !== 'sharing') return;
+    const t = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(t);
+  }, [location.state]);
+
+  const locationBadgeText = (() => {
+    switch (location.state) {
+      case 'sharing':
+        return location.lastSentAt
+          ? `Sharing location · updated ${ago(location.lastSentAt, Math.max(now, location.lastSentAt))}`
+          : 'Sharing location · GPS active';
+      case 'starting':
+        return 'Starting location sharing…';
+      case 'needs_permission':
+        return 'Location access needed while on duty';
+      case 'denied':
+        return 'Location permission denied';
+      case 'services_off':
+        return 'Device location services are off';
+      case 'off':
+        return 'Location off · go online to start';
+      default:
+        return location.message || 'Location paused';
     }
-    if (location.state === 'denied' || location.state === 'needs_permission') {
-      return 'Location access required for deliveries';
-    }
-    if (location.state === 'services_off') {
-      return 'Device location services are off';
-    }
-    if (location.state === 'off') {
-      return 'Location off · go online to start';
-    }
-    return location.message || 'Location paused';
-  }, [location.state, location.lastSentAt, location.message]);
+  })();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -251,13 +263,13 @@ export default function Home() {
               {(location.state === 'denied' || location.state === 'needs_permission') && (
                 <Pressable
                   onPress={() => {
-                    if (location.canAskAgain) location.requestPermission();
-                    else location.openSettings();
+                    if (location.state === 'denied' && !location.canAskAgain) location.openSettings();
+                    else router.push('/location-permission');
                   }}
                   hitSlop={8}
                 >
                   <Text variant="caption" tone="brand" style={{ fontWeight: '600' }}>
-                    {location.canAskAgain ? 'Allow' : 'Settings'}
+                    {location.state === 'denied' && !location.canAskAgain ? 'Open Settings' : 'Allow'}
                   </Text>
                 </Pressable>
               )}

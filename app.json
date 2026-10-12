@@ -60,7 +60,10 @@
         {
           "locationWhenInUsePermission": "KOOL Logistics shares your live location with retailers and dispatch while you are on duty or delivering an order."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -72,7 +75,11 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "KOOL Logistics shares your live location with retailers and dispatch while you are on duty or delivering an order.",
         "NSCameraUsageDescription": "KOOL Logistics uses the camera to scan waybill QR codes and take proof-of-delivery photos.",
-        "NSPhotoLibraryUsageDescription": "KOOL Logistics needs photo access to upload waybill QR codes or proof-of-delivery photos."
+        "NSPhotoLibraryUsageDescription": "KOOL Logistics needs photo access to upload waybill QR codes or proof-of-delivery photos.",
+        "LSApplicationQueriesSchemes": [
+          "comgooglemaps",
+          "whatsapp"
+        ]
       }
     },
     "backgroundColor": "#FFFFFF"

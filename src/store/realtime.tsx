@@ -1,27 +1,33 @@
 /**
- * Realtime updates over socket.io (`/api/v1/socket.io`).
+ * Realtime updates over socket.io (path `/api/v1/socket.io` on the API origin).
  *
- * Connects directly to the API origin via WebSocket transport with the rider's
- * access token in `auth.token`. When a token expires, refreshes the token and
- * reconnects.
+ *   - WebSocket transport only (React Native has no XHR long-polling upgrade
+ *     story worth having), handshake `auth: { token: <access JWT> }`.
+ *   - The token is read fresh on every (re)connect. When the server rejects it
+ *     (`token_invalid` / `unauthorized`) the session is refreshed; any token
+ *     change (refresh here or in the HTTP layer) reconnects with the new token.
+ *   - On every (re)connect, and when the app returns to the foreground, the
+ *     RTK Query caches are refreshed so nothing missed while offline is lost.
  *
- * Listens to:
- *   - `notification:new`: refreshes notifications query, shows heads-up banner
- *   - `delivery:update`: invalidates delivery and rider caches, alerts rider
- *     on new assignment or cancellation
+ * Events:
+ *   - `notification:new`  → refresh notification queries + heads-up banner
+ *   - `notification:read` → refresh notification queries (other devices)
+ *   - `delivery:update`   → refresh delivery caches; banner on a new
+ *     assignment, a reassignment away from this rider, or a cancellation
+ *     (deduplicated against the matching `notification:new`).
  */
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { router, type Href } from 'expo-router';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 import { io, type Socket } from 'socket.io-client';
 
 import { InAppBanner, type InAppBannerItem } from '@/components/ui/InAppBanner';
 import { API_ORIGIN, SOCKET_PATH } from '@/lib/api-config';
 import { onTokensChange, readStoredTokens } from '@/lib/token-storage';
-import { refreshSession } from './base-api';
+import { baseApi, refreshSession } from './base-api';
 import { useAppDispatch } from './hooks';
-import { notificationsApi, type AppNotification } from './notifications-api';
-import { riderApi } from './rider-api';
+import { notificationDeliveryId, notificationsApi, type AppNotification } from './notifications-api';
 import { useSession } from './session';
 
 type DeliveryUpdateEvent = {
@@ -40,181 +46,189 @@ type NotificationNewEvent = {
   unread_count?: number;
 };
 
+type Banner = InAppBannerItem & { link: Href; notificationId?: string };
+
 type RealtimeContextValue = {
+  /** Live socket connected — screens poll as a fallback while it is not. */
   connected: boolean;
-  banner: InAppBannerItem | null;
-  dismissBanner: () => void;
 };
 
-const RealtimeContext = createContext<RealtimeContextValue>({
-  connected: false,
-  banner: null,
-  dismissBanner: () => {},
-});
+const RealtimeContext = createContext<RealtimeContextValue>({ connected: false });
+
+const BANNER_MS = 6000;
+const DEDUPE_MS = 8000;
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
   const dispatch = useAppDispatch();
-  const { status, user } = useSession();
+  const { status, user, mustChangePassword } = useSession();
+  const userId = user?.id ?? null;
+  const enabled = status === 'signedIn' && !mustChangePassword;
 
   const [connected, setConnected] = useState(false);
-  const [banner, setBanner] = useState<InAppBannerItem | null>(null);
-  const [bannerLink, setBannerLink] = useState<string | null>(null);
-
-  const socketRef = useRef<Socket | null>(null);
+  const [banner, setBanner] = useState<Banner | null>(null);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** delivery_id → when a banner about it was last shown. */
+  const recent = useRef(new Map<string, number>());
 
-  const showBanner = (item: InAppBannerItem, link?: string | null) => {
-    if (bannerTimer.current) clearTimeout(bannerTimer.current);
-    setBanner(item);
-    setBannerLink(link ?? null);
-    bannerTimer.current = setTimeout(() => {
-      setBanner(null);
-      setBannerLink(null);
-    }, 6000);
-  };
-
-  const dismissBanner = () => {
+  const dismissBanner = useCallback(() => {
     if (bannerTimer.current) clearTimeout(bannerTimer.current);
     setBanner(null);
-    setBannerLink(null);
-  };
+  }, []);
 
-  const onBannerPress = () => {
-    const link = bannerLink;
-    dismissBanner();
-    if (link) router.push(link as any);
-  };
+  const showBanner = useCallback((item: Banner, deliveryId?: string | null) => {
+    if (deliveryId) recent.current.set(deliveryId, Date.now());
+    if (bannerTimer.current) clearTimeout(bannerTimer.current);
+    setBanner(item);
+    bannerTimer.current = setTimeout(() => setBanner(null), BANNER_MS);
+  }, []);
 
   useEffect(() => {
-    if (status !== 'signedIn') {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+    if (!enabled) return;
+
+    const refreshAll = () =>
+      dispatch(baseApi.util.invalidateTags(['Notifications', 'RiderMe', 'Deliveries', 'Delivery']));
+
+    const socket: Socket = io(API_ORIGIN, {
+      path: SOCKET_PATH,
+      transports: ['websocket'],
+      // A function so every reconnect uses the current access token.
+      auth: (cb) => cb({ token: readStoredTokens()?.access ?? '' }),
+      reconnection: true,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 30000,
+      timeout: 15000,
+    });
+
+    let refreshing = false;
+
+    socket.on('connect', () => {
+      setConnected(true);
+      refreshAll(); // catch up on anything missed while disconnected
+    });
+    socket.on('disconnect', () => setConnected(false));
+    socket.on('connect_error', async (err: Error) => {
       setConnected(false);
-      return;
-    }
-
-    const connect = () => {
-      const tokens = readStoredTokens();
-      const token = tokens?.access;
-      if (!token) return;
-
-      if (socketRef.current) {
-        socketRef.current.disconnect();
+      // A middleware rejection stops auto-reconnect; refresh and the token
+      // listener below reconnects with the new token.
+      if ((err.message === 'token_invalid' || err.message === 'unauthorized') && !refreshing) {
+        refreshing = true;
+        const ok = await refreshSession();
+        refreshing = false;
+        if (ok && !socket.active) socket.connect();
       }
+    });
 
-      const socket = io(API_ORIGIN, {
-        path: SOCKET_PATH,
-        transports: ['websocket'],
-        auth: { token },
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
-        timeout: 10000,
-      });
-
-      socket.on('connect', () => {
-        setConnected(true);
-      });
-
-      socket.on('disconnect', () => {
-        setConnected(false);
-      });
-
-      socket.on('connect_error', async (err: Error) => {
-        setConnected(false);
-        if (err.message === 'token_invalid' || err.message === 'unauthorized') {
-          const refreshed = await refreshSession();
-          if (refreshed) {
-            connect();
-          }
-        }
-      });
-
-      socket.on('notification:new', (payload: NotificationNewEvent) => {
-        dispatch(notificationsApi.util.invalidateTags(['Notifications']));
-        const n = payload?.notification;
-        if (!n) return;
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        const deliveryId = n.metadata?.delivery_id;
-        const link = typeof deliveryId === 'string' && deliveryId ? `/order/${deliveryId}` : '/alerts';
-        showBanner(
-          {
-            id: n.id || String(Date.now()),
-            title: n.title,
-            message: n.message,
-            icon: 'notifications-outline',
-            tone: 'brand',
-          },
-          link,
-        );
-      });
-
-      socket.on('delivery:update', (payload: DeliveryUpdateEvent) => {
-        if (!payload?.delivery_id) return;
-        const dId = payload.delivery_id;
+    socket.on('notification:new', (payload: NotificationNewEvent) => {
+      dispatch(baseApi.util.invalidateTags(['Notifications']));
+      const n = payload?.notification;
+      if (!n) return;
+      const deliveryId = notificationDeliveryId(n);
+      if (deliveryId) {
         dispatch(
-          riderApi.util.invalidateTags([
-            { type: 'Delivery', id: dId },
+          baseApi.util.invalidateTags([
+            { type: 'Delivery', id: deliveryId },
             { type: 'Deliveries', id: 'ACTIVE' },
             { type: 'Deliveries', id: 'DONE' },
             'RiderMe',
           ]),
         );
+      }
+      const kind = typeof n.metadata?.kind === 'string' ? n.metadata.kind : '';
+      const bad = kind === 'delivery_cancelled' || kind === 'delivery_unassigned';
+      Haptics.notificationAsync(
+        bad ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Success,
+      ).catch(() => {});
+      showBanner(
+        {
+          id: n.id || `n-${Date.now()}`,
+          title: n.title,
+          message: n.message,
+          icon: kind === 'delivery_assigned' ? 'bicycle-outline' : bad ? 'alert-circle-outline' : 'notifications-outline',
+          tone: bad ? 'danger' : 'brand',
+          // Unassigned/cancelled deliveries are no longer viewable by this rider.
+          link: deliveryId && !bad ? `/order/${deliveryId}` : '/alerts',
+          notificationId: n.id,
+        },
+        deliveryId,
+      );
+    });
 
-        if (payload.kind === 'assignment') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-          showBanner(
-            {
-              id: `assign-${dId}-${Date.now()}`,
-              title: `New delivery assigned`,
-              message: `Order #${payload.order_number} is ready for collection.`,
-              icon: 'bicycle-outline',
-              tone: 'brand',
-            },
-            `/order/${dId}`,
-          );
-        } else if (payload.status === 'cancelled' || payload.kind === 'exception') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-          showBanner(
-            {
-              id: `cancel-${dId}-${Date.now()}`,
-              title: `Delivery update: Order #${payload.order_number}`,
-              message: payload.status_display || 'Order has been updated.',
-              icon: 'alert-circle-outline',
-              tone: 'danger',
-            },
-            `/order/${dId}`,
-          );
-        }
-      });
+    socket.on('notification:read', () => {
+      dispatch(baseApi.util.invalidateTags(['Notifications']));
+    });
 
-      socketRef.current = socket;
-    };
+    socket.on('delivery:update', (p: DeliveryUpdateEvent) => {
+      if (!p?.delivery_id) return;
+      // Our own location pings echo back as `location` — nothing to refresh.
+      if (p.kind === 'location') return;
+      const id = p.delivery_id;
+      dispatch(
+        baseApi.util.invalidateTags([
+          { type: 'Delivery', id },
+          { type: 'Deliveries', id: 'ACTIVE' },
+          { type: 'Deliveries', id: 'DONE' },
+          'RiderMe',
+        ]),
+      );
 
-    connect();
+      const mine = p.rider?.id != null && p.rider.id === userId;
+      let alert: Banner | null = null;
+      const ref = p.order_number ? `order #${p.order_number}` : 'a delivery';
+      if (p.status === 'cancelled') {
+        alert = { id: `c-${id}`, title: 'Delivery cancelled', message: `Dispatch cancelled ${ref}.`, tone: 'danger', icon: 'close-circle-outline', link: '/(tabs)/orders' };
+      } else if (p.kind === 'assignment' && mine && p.status === 'assigned') {
+        alert = { id: `a-${id}`, title: 'New delivery assigned', message: `Pick up ${ref}.`, tone: 'brand', icon: 'bicycle-outline', link: `/order/${id}` };
+      } else if (p.kind === 'assignment' && !mine) {
+        alert = { id: `u-${id}`, title: 'Delivery reassigned', message: `${ref[0].toUpperCase()}${ref.slice(1)} is no longer assigned to you.`, tone: 'danger', icon: 'swap-horizontal-outline', link: '/(tabs)/orders' };
+      }
+      if (!alert) return;
+      const banner = alert;
+      // The backend usually sends a notification:new for the same event; wait a
+      // moment and only alert if it did not.
+      setTimeout(() => {
+        const last = recent.current.get(id) ?? 0;
+        if (Date.now() - last < DEDUPE_MS) return;
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        showBanner(banner, id);
+      }, 1500);
+    });
 
-    const unsub = onTokensChange((tokens) => {
-      if (tokens?.access && socketRef.current) {
-        socketRef.current.auth = { token: tokens.access };
-        socketRef.current.disconnect().connect();
+    // New access token (refreshed here or by an HTTP 401) → reconnect with it.
+    const unsubTokens = onTokensChange((tokens) => {
+      if (tokens?.access) {
+        socket.disconnect();
+        socket.connect();
       }
     });
 
+    // Back from the background: make sure the socket is up and data is fresh.
+    const appSub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') return;
+      if (!socket.connected) socket.connect();
+      else refreshAll();
+    });
+
     return () => {
-      unsub();
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+      unsubTokens();
+      appSub.remove();
+      socket.removeAllListeners();
+      socket.disconnect();
       setConnected(false);
     };
-  }, [status, dispatch, user?.id]);
+  }, [enabled, userId, dispatch, showBanner]);
+
+  const onBannerPress = () => {
+    const b = banner;
+    dismissBanner();
+    if (!b) return;
+    if (b.notificationId) {
+      dispatch(notificationsApi.endpoints.markNotificationRead.initiate(b.notificationId)).catch(() => {});
+    }
+    router.push(b.link);
+  };
 
   return (
-    <RealtimeContext.Provider value={{ connected, banner, dismissBanner }}>
+    <RealtimeContext.Provider value={{ connected: enabled && connected }}>
       {children}
       <InAppBanner item={banner} onDismiss={dismissBanner} onPress={onBannerPress} />
     </RealtimeContext.Provider>

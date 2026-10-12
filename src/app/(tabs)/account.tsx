@@ -12,22 +12,21 @@ import {
   ListRow,
   ScreenScroll,
   SegmentedControl,
-  Switch,
   Text,
 } from '@/components/ui';
 import { Company } from '@/data/site';
 import { useRiderMeQuery } from '@/store/rider-api';
+import { useLocationSharing } from '@/store/location';
 import { useSession } from '@/store/session';
-import { Layout, Motion, Spacing, useTheme, type ThemePreference } from '@/theme';
+import { Motion, Spacing, useTheme, type ThemePreference } from '@/theme';
 
 export default function Account() {
   const router = useRouter();
-  const { colors, preference, setPreference } = useTheme();
+  const { preference, setPreference } = useTheme();
   const { user, signOut } = useSession();
+  const location = useLocationSharing();
   const { data: meData, refetch } = useRiderMeQuery();
 
-  const [push, setPush] = useState(true);
-  const [sounds, setSounds] = useState(true);
   const [confirmOut, setConfirmOut] = useState(false);
 
   const rider = meData?.rider;
@@ -111,7 +110,22 @@ export default function Account() {
               icon="key-outline"
               title="Change password"
               subtitle="Update your account password"
-              onPress={() => router.push('/(auth)/change-password' as any)}
+              onPress={() => router.push('/(auth)/change-password')}
+            />
+            <Divider inset={Spacing.md} />
+            <ListRow
+              icon="navigate-outline"
+              title="Location sharing"
+              subtitle={
+                location.state === 'sharing'
+                  ? 'On — shared while you are on duty'
+                  : location.permission === 'granted'
+                    ? 'Allowed — starts when you go online'
+                    : location.permission === 'denied'
+                      ? 'Blocked — tap to fix'
+                      : 'Not allowed yet — tap to set up'
+              }
+              onPress={() => router.push('/location-permission')}
             />
           </Card>
         </Animated.View>

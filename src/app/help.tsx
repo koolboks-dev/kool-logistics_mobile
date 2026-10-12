@@ -12,11 +12,10 @@ import {
   Text,
 } from '@/components/ui';
 import { Company, Faqs, Stats } from '@/data/site';
-import { Motion, Radius, Spacing, useTheme } from '@/theme';
+import { Motion, Radius, Spacing } from '@/theme';
 
 export default function Help() {
   const router = useRouter();
-  const { colors } = useTheme();
 
   const open = (url: string) => Linking.openURL(url).catch(() => {});
 
@@ -33,7 +32,7 @@ export default function Help() {
           <View style={styles.heroScrim} />
           <View style={styles.heroCopy}>
             <Text variant="subheading" style={{ color: '#fff' }}>
-              We're here to help
+              We’re here to help
             </Text>
             <Text variant="caption" style={{ color: 'rgba(255,255,255,0.88)' }}>
               Our team is on hand {Company.hours.toLowerCase()}.

@@ -11,7 +11,7 @@ import { Layout, LogoRatio, Motion, Radius, Spacing, useTheme } from '@/theme';
 
 export default function Welcome() {
   const router = useRouter();
-  const { mode, colors } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (

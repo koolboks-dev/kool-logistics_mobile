@@ -8,7 +8,6 @@ import {
   BottomSheet,
   Button,
   Card,
-  Divider,
   EmptyState,
   ScreenScroll,
   SwipeableRow,
@@ -36,7 +35,7 @@ export default function Alerts() {
   const { colors } = useTheme();
   const toast = useToast();
 
-  const { data, refetch, isFetching } = useNotificationsQuery({ pageSize: 50 });
+  const { data, refetch } = useNotificationsQuery({ pageSize: 50 });
   const [markRead] = useMarkNotificationReadMutation();
   const [markAllRead, { isLoading: markingAll }] = useMarkAllNotificationsReadMutation();
 

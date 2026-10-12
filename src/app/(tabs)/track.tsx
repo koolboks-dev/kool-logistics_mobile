@@ -19,18 +19,18 @@ import {
 } from '@/components/ui';
 import { dropoffAddress, stageTimeline } from '@/lib/delivery';
 import { tokenFromScan } from '@/lib/qr';
-import { useScanDeliveryMutation, type RiderDelivery } from '@/store/rider-api';
-import { Motion, Spacing, useTheme } from '@/theme';
+import { apiErrorCode, apiErrorMessage } from '@/store/base-api';
+import { useScanDeliveryMutation, type ScanResult } from '@/store/rider-api';
+import { Motion, Spacing } from '@/theme';
 
 export default function Track() {
   const router = useRouter();
-  const { colors } = useTheme();
   const toast = useToast();
 
   const [scanDelivery, { isLoading: busy }] = useScanDeliveryMutation();
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string>();
-  const [result, setResult] = useState<RiderDelivery | null>(null);
+  const [result, setResult] = useState<ScanResult | null>(null);
   const [searched, setSearched] = useState(false);
 
   const track = async () => {
@@ -47,12 +47,14 @@ export default function Track() {
       setResult(outcome);
       setSearched(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (err: any) {
+    } catch (err) {
       setResult(null);
       setSearched(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      const msg = err?.data?.error?.message || 'No shipment found for that reference';
-      toast.show(msg, 'error');
+      toast.show(
+        apiErrorCode(err) === 'unknown_token' ? 'No delivery found for that reference' : apiErrorMessage(err),
+        'error',
+      );
     }
   };
 
@@ -114,12 +116,18 @@ export default function Track() {
               <DetailRow label="Destination" value={dropoffAddress(result)} />
               <DetailRow label="Items" value={`${result.items_count} item(s)`} />
 
-              <Button
-                label="Open Delivery Details"
-                icon="arrow-forward-outline"
-                onPress={() => router.push(`/order/${result.delivery_id}`)}
-                style={{ marginTop: Spacing.xs }}
-              />
+              {result.warning ? (
+                <Text variant="caption" tone="danger">
+                  {result.warning}
+                </Text>
+              ) : (
+                <Button
+                  label="Open Delivery Details"
+                  icon="arrow-forward-outline"
+                  onPress={() => router.push(`/order/${result.delivery_id}`)}
+                  style={{ marginTop: Spacing.xs }}
+                />
+              )}
             </View>
           </Card>
 
