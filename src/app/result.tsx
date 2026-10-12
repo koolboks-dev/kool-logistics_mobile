@@ -16,6 +16,8 @@ type Params = {
   dropoff?: string;
   warning?: string;
   reason?: string;
+  /** 'freezer' for a freezer deployment (Task 9), else a stock delivery. */
+  kind?: string;
 };
 
 /** Outcome screen: a completed handover, or the result of a waybill scan. */
@@ -30,6 +32,7 @@ export default function Result() {
   // A scan of someone else's delivery is accepted with a warning but this
   // rider cannot open it.
   const foreign = scan && Boolean(p.warning);
+  const freezer = p.kind === 'freezer';
 
   const title = rejected
     ? 'Scan not accepted'
@@ -37,7 +40,9 @@ export default function Result() {
       ? foreign
         ? 'Not your delivery'
         : 'Delivery found'
-      : 'Delivery completed';
+      : freezer
+        ? 'Freezer installed'
+        : 'Delivery completed';
 
   const body = rejected
     ? p.reason || 'This code does not match a delivery you can handle.'
@@ -45,7 +50,9 @@ export default function Result() {
       ? foreign
         ? p.warning
         : `${p.ref ?? 'This delivery'} is assigned to you.`
-      : `${p.ref ?? 'The order'} was handed over. The retailer has been asked to confirm receipt.`;
+      : freezer
+        ? `${p.ref ?? 'The freezer'} was installed. The retailer has been asked to confirm the installation.`
+        : `${p.ref ?? 'The order'} was handed over. The retailer has been asked to confirm receipt.`;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background, paddingTop: insets.top + Spacing.xxxl }]}>
@@ -70,8 +77,8 @@ export default function Result() {
                 </Text>
                 {p.delivery ? <StatusPill status={p.delivery} size="sm" /> : null}
               </View>
-              {p.pickup ? <DetailRow label="Pickup" value={p.pickup} /> : null}
-              {p.dropoff ? <DetailRow label="Deliver to" value={p.dropoff} /> : null}
+              {p.pickup ? <DetailRow label={freezer ? 'Depot' : 'Pickup'} value={p.pickup} /> : null}
+              {p.dropoff ? <DetailRow label={freezer ? 'Install at' : 'Deliver to'} value={p.dropoff} /> : null}
             </Card>
           </Animated.View>
         )}

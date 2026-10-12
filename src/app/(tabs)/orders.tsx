@@ -13,7 +13,7 @@ import {
   Text,
   useToast,
 } from '@/components/ui';
-import { dropoffAddress, expectedLabel } from '@/lib/delivery';
+import { cardMeta, deliveryRef, dropoffAddress, isFreezerDelivery } from '@/lib/delivery';
 import { useAssignedDeliveriesQuery, type RiderDelivery } from '@/store/rider-api';
 import { Motion, Spacing } from '@/theme';
 
@@ -64,7 +64,12 @@ export default function Orders() {
         const ref = (d.delivery_id || '').toLowerCase();
         const name = (d.customer?.name || d.dropoff?.name || '').toLowerCase();
         const addr = dropoffAddress(d).toLowerCase();
-        return orderNum.includes(q) || ref.includes(q) || name.includes(q) || addr.includes(q);
+        const freezer = d.freezer
+          ? `freezer ${d.freezer.model_name} ${d.freezer.serial_number} ${d.freezer.depot_name}`.toLowerCase()
+          : '';
+        return (
+          orderNum.includes(q) || ref.includes(q) || name.includes(q) || addr.includes(q) || freezer.includes(q)
+        );
       });
     }
     return list;
@@ -123,12 +128,13 @@ export default function Orders() {
               <OrderCard
                 order={{
                   id: d.delivery_id,
-                  reference: d.order_number ? `#${d.order_number}` : d.delivery_id.slice(0, 8),
+                  reference: deliveryRef(d, { hash: true }),
                   recipient: d.customer?.name || d.dropoff?.name || 'Retailer',
                   address: dropoffAddress(d),
                   status: d.status,
                   delayed: d.is_delayed,
-                  meta: `${expectedLabel(d)}${d.items_count ? ` · ${d.items_count} items` : ''}`,
+                  meta: cardMeta(d),
+                  freezer: isFreezerDelivery(d),
                 }}
                 onPress={() => router.push(`/order/${d.delivery_id}`)}
               />

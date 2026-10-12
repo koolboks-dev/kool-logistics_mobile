@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, type ViewStyle } from 'react-native';
 
 import { FontFamily, FontSize, Radius, Spacing, useColors } from '@/theme';
@@ -110,6 +111,32 @@ export function DelayBadge({ label = 'Delayed', style }: { label?: string; style
       ]}
     >
       <Text style={{ color: c.danger, fontFamily: FontFamily.semibold, fontSize: FontSize.xs }}>{label}</Text>
+    </View>
+  );
+}
+
+/** "Freezer" tag marking a freezer deployment (Task 9) among stock deliveries. */
+export function FreezerBadge({ label = 'Freezer', style }: { label?: string; style?: ViewStyle }) {
+  const c = useColors();
+  return (
+    <View
+      accessibilityLabel="Freezer deployment"
+      style={[
+        {
+          alignSelf: 'flex-start',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 3,
+          backgroundColor: c.infoSoft,
+          borderRadius: Radius.pill,
+          paddingHorizontal: Spacing.sm,
+          paddingVertical: 3,
+        },
+        style,
+      ]}
+    >
+      <Ionicons name="snow-outline" size={11} color={c.info} />
+      <Text style={{ color: c.info, fontFamily: FontFamily.semibold, fontSize: FontSize.xs }}>{label}</Text>
     </View>
   );
 }

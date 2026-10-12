@@ -28,6 +28,7 @@ const META: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string
   delivery: { icon: 'bicycle-outline', label: 'Delivery' },
   payment: { icon: 'card-outline', label: 'Payment' },
   system: { icon: 'information-circle-outline', label: 'System' },
+  freezer: { icon: 'snow-outline', label: 'Freezer deployment' },
 };
 
 export default function Alerts() {
@@ -97,7 +98,8 @@ export default function Alerts() {
 
             <Animated.View layout={LinearTransition.duration(Motion.base)} style={styles.list}>
               {notifications.map((n, i) => {
-                const meta = META[n.type] ?? META.system;
+                const meta =
+                  n.metadata?.delivery_type === 'freezer' ? META.freezer : (META[n.type] ?? META.system);
                 const dId = notificationDeliveryId(n);
                 return (
                   <Animated.View

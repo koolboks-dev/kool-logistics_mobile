@@ -45,7 +45,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "KOOL Logistics uses the camera to scan waybill QR codes and take proof-of-delivery photos.",
+          "cameraPermission": "KOOL Logistics uses the camera to scan waybill QR codes and freezer serial barcodes, and to take proof-of-delivery photos.",
           "recordAudioAndroid": false
         }
       ],
@@ -74,7 +74,7 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "KOOL Logistics shares your live location with retailers and dispatch while you are on duty or delivering an order.",
-        "NSCameraUsageDescription": "KOOL Logistics uses the camera to scan waybill QR codes and take proof-of-delivery photos.",
+        "NSCameraUsageDescription": "KOOL Logistics uses the camera to scan waybill QR codes and freezer serial barcodes, and to take proof-of-delivery photos.",
         "NSPhotoLibraryUsageDescription": "KOOL Logistics needs photo access to upload waybill QR codes or proof-of-delivery photos.",
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",

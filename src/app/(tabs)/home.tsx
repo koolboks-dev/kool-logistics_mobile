@@ -17,7 +17,7 @@ import {
   Text,
   useToast,
 } from '@/components/ui';
-import { ago, dropoffAddress, expectedLabel } from '@/lib/delivery';
+import { ago, cardMeta, deliveryRef, dropoffAddress, isFreezerDelivery } from '@/lib/delivery';
 import { pickQrFromLibrary } from '@/lib/qr';
 import { useLocation } from '@/store/location';
 import { useUnreadCountQuery } from '@/store/notifications-api';
@@ -327,12 +327,13 @@ export default function Home() {
                   key={d.delivery_id}
                   order={{
                     id: d.delivery_id,
-                    reference: d.order_number ? `#${d.order_number}` : d.delivery_id.slice(0, 8),
+                    reference: deliveryRef(d, { hash: true }),
                     recipient: d.customer?.name || d.dropoff?.name || 'Retailer',
                     address: dropoffAddress(d),
                     status: d.status,
                     delayed: d.is_delayed,
-                    meta: `${expectedLabel(d)}${d.items_count ? ` · ${d.items_count} items` : ''}`,
+                    meta: cardMeta(d),
+                    freezer: isFreezerDelivery(d),
                   }}
                   onPress={() => router.push(`/order/${d.delivery_id}`)}
                 />

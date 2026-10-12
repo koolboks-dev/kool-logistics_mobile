@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 
 import { useToast } from '@/components/ui';
+import { deliveryRef, isFreezerDelivery } from '@/lib/delivery';
 import { tokenFromScan } from '@/lib/qr';
 import { apiErrorCode, apiErrorMessage } from './base-api';
 import { useScanDeliveryMutation } from './rider-api';
@@ -31,7 +32,8 @@ export function useScanAndOpen() {
           params: {
             status: 'scan',
             id: d.delivery_id,
-            ref: d.order_number ? `Order #${d.order_number}` : 'Delivery',
+            ref: isFreezerDelivery(d) && d.freezer?.model_name ? `Freezer deployment · ${d.freezer.model_name}` : deliveryRef(d),
+            kind: isFreezerDelivery(d) ? 'freezer' : 'stock',
             delivery: d.status,
             pickup: d.pickup.name,
             dropoff: d.dropoff.name || d.customer.name,

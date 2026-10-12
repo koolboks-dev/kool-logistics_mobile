@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { ChevronMarkIcon } from '@/components/icons';
 import { Motion, Radius, Spacing, useColors } from '@/theme';
 import { Divider } from './Divider';
-import { DelayBadge, StatusPill, type DeliveryStatus } from './StatusPill';
+import { DelayBadge, FreezerBadge, StatusPill, type DeliveryStatus } from './StatusPill';
 import { Text } from './Text';
 
 export type Order = {
@@ -21,6 +21,8 @@ export type Order = {
   meta?: string;
   /** Shows the red "Delayed" tag next to the status. */
   delayed?: boolean;
+  /** Freezer deployment (Task 9): shows the "Freezer" tag. */
+  freezer?: boolean;
 };
 
 export function OrderCard({ order, onPress }: { order: Order; onPress?: () => void }) {
@@ -41,9 +43,12 @@ export function OrderCard({ order, onPress }: { order: Order; onPress?: () => vo
       >
         <View style={styles.top}>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text variant="caption" tone="muted">
-              {order.reference}
-            </Text>
+            <View style={styles.refRow}>
+              <Text variant="caption" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {order.reference}
+              </Text>
+              {order.freezer && <FreezerBadge />}
+            </View>
             <Text variant="bodyStrong" numberOfLines={1}>
               {order.recipient}
             </Text>
@@ -81,4 +86,5 @@ const styles = StyleSheet.create({
   card: { borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.md },
   top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   bottom: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  refRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
 });

@@ -47,6 +47,85 @@ export const STAGE_ACTIONS: Record<
   },
 };
 
+type StageCopy = { label: string; icon: keyof typeof Ionicons.glyphMap; confirm: string; done: string };
+
+/** Freezer deployments: collect the unit at the depot, then deliver and install it. */
+export const FREEZER_STAGE_ACTIONS: Record<RiderStage, StageCopy> = {
+  travelling_to_pickup: {
+    label: 'Start trip to depot',
+    icon: 'bicycle-outline',
+    confirm: 'The depot will be told you are on your way to collect the freezer.',
+    done: 'Trip started — head to the depot',
+  },
+  picked_up: {
+    label: 'Confirm freezer collected',
+    icon: 'cube-outline',
+    confirm: 'Confirm you have collected the allocated freezer from the depot. The retailer gets their delivery code now.',
+    done: 'Freezer collected',
+  },
+  in_transit: {
+    label: 'Start delivery',
+    icon: 'navigate-outline',
+    confirm: 'You are now heading to the retailer to install the freezer. Your live location is shared with them.',
+    done: 'On the way to the retailer',
+  },
+  delivered: {
+    label: 'Install & complete',
+    icon: 'construct-outline',
+    confirm: '',
+    done: 'Freezer installed',
+  },
+};
+
+type Typed = Pick<RiderDelivery, 'delivery_type' | 'freezer'>;
+
+/** A freezer deployment (Task 9) rather than a stock order delivery. */
+export function isFreezerDelivery(d: Partial<Typed> | null | undefined): boolean {
+  return !!d && (d.delivery_type === 'freezer' || !!d.freezer);
+}
+
+/** Stage button copy for this delivery's type. */
+export function stageActionsFor(d: Partial<Typed> | null | undefined): Record<RiderStage, StageCopy> {
+  return isFreezerDelivery(d) ? FREEZER_STAGE_ACTIONS : STAGE_ACTIONS;
+}
+
+/** "Order #123", "Freezer deployment" or a short delivery id. */
+export function deliveryRef(
+  d: Pick<RiderDelivery, 'order_number' | 'delivery_id'> & Partial<Typed>,
+  opts: { hash?: boolean } = {},
+): string {
+  if (isFreezerDelivery(d)) return 'Freezer deployment';
+  if (d.order_number) return opts.hash ? `#${d.order_number}` : `Order #${d.order_number}`;
+  return opts.hash ? d.delivery_id.slice(0, 8) : 'Delivery';
+}
+
+/**
+ * Normalise a scanned / typed freezer serial the way the backend compares it:
+ * whitespace removed, upper-cased. A scanned URL or "SN:" label is reduced to
+ * the serial itself.
+ */
+export function normaliseSerial(raw: string): string {
+  let v = raw.trim();
+  if (/^https?:\/\//i.test(v)) {
+    // Parsed by hand: React Native's URL polyfill lacks parts of searchParams.
+    const q = /[?&](?:serial|serial_number|sn)=([^&#]+)/i.exec(v);
+    if (q) {
+      try {
+        v = decodeURIComponent(q[1].replace(/\+/g, ' '));
+      } catch {
+        v = q[1];
+      }
+    } else {
+      const path = v.replace(/^https?:\/\/[^/]+/i, '').replace(/[?#].*$/, '');
+      v = path.split('/').filter(Boolean).pop() || v;
+    }
+  }
+  // "S/N: ABC123" / "Serial No: ABC123" — only with an explicit separator so a
+  // serial that itself starts with "SN" is left alone.
+  v = v.replace(/^(s\/?n|serial(\s*(no|number))?)\s*[:#]\s*/i, '');
+  return v.replace(/\s+/g, '').toUpperCase();
+}
+
 export function shortTime(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -92,6 +171,15 @@ export function expectedLabel(d: Pick<RiderDelivery, 'expected_delivery_at' | 'i
   return `Due ${shortTime(d.expected_delivery_at)}`;
 }
 
+/** Secondary line on a delivery card: "Due 14:30 · 3 items" / "Install · Model X · Due 14:30". */
+export function cardMeta(d: RiderDelivery): string {
+  const due = expectedLabel(d);
+  if (isFreezerDelivery(d)) {
+    return ['Install', d.freezer?.model_name || d.items[0]?.name || 'Freezer', due].filter(Boolean).join(' · ');
+  }
+  return `${due}${d.items_count ? `${due ? ' · ' : ''}${d.items_count} items` : ''}`;
+}
+
 export function dropoffAddress(d: Pick<RiderDelivery, 'dropoff'>): string {
   const x = d.dropoff;
   return x.address || [x.line1, x.city, x.state].filter(Boolean).join(', ');
@@ -100,11 +188,20 @@ export function dropoffAddress(d: Pick<RiderDelivery, 'dropoff'>): string {
 /** The rider's stage timeline, built from the stage timestamps. */
 export function stageTimeline(d: RiderDelivery): TimelineStep[] {
   const failed = d.status === 'failed' || d.status === 'cancelled' || d.status === 'returned';
+  const freezer = isFreezerDelivery(d);
   const steps: { title: string; at: string | null; description?: string }[] = [
     { title: 'Assigned to you', at: d.assigned_at },
-    { title: 'Heading to pickup', at: d.travelling_to_pickup_at, description: d.pickup.name || undefined },
-    { title: 'Picked up', at: d.picked_up_at },
-    { title: 'Delivered', at: d.delivered_at, description: d.recipient_name ? `Received by ${d.recipient_name}` : undefined },
+    {
+      title: freezer ? 'Heading to depot' : 'Heading to pickup',
+      at: d.travelling_to_pickup_at,
+      description: d.pickup.name || undefined,
+    },
+    { title: freezer ? 'Freezer collected' : 'Picked up', at: d.picked_up_at },
+    {
+      title: freezer ? 'Installed' : 'Delivered',
+      at: d.delivered_at,
+      description: d.recipient_name ? `Received by ${d.recipient_name}` : undefined,
+    },
   ];
   const lastDone = steps.reduce((acc, s, i) => (s.at ? i : acc), -1);
   const out: TimelineStep[] = steps.map((s, i) => ({
@@ -117,7 +214,11 @@ export function stageTimeline(d: RiderDelivery): TimelineStep[] {
   if (d.confirmation) {
     out.push({
       title: d.confirmation.outcome_display || 'Confirmed',
-      description: d.confirmation.auto_confirmed ? 'Auto-confirmed' : 'Confirmed by the retailer',
+      description: d.confirmation.auto_confirmed
+        ? 'Auto-confirmed'
+        : freezer
+          ? 'Installation confirmed by the retailer'
+          : 'Confirmed by the retailer',
       timestamp: dayTime(d.confirmation.confirmed_at),
       state: 'done',
     });

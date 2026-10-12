@@ -73,9 +73,28 @@ export type DeliveryIssue = {
   created_at: string;
 };
 
+/** 'stock' (an order from a wholesaler) or 'freezer' (Task 9 freezer deployment). */
+export type DeliveryType = 'stock' | 'freezer';
+
+/**
+ * Freezer deployments (Task 9): the rider collects the allocated unit from a
+ * Koolboks depot and installs it at the retailer. Present only on freezer
+ * deliveries.
+ */
+export type FreezerBlock = {
+  deployment_id: string;
+  model_name: string;
+  /** The unit allocated to this deployment — the rider must scan/enter it on completion. */
+  serial_number: string;
+  depot_name: string;
+  install_required: boolean;
+};
+
 export type RiderDelivery = {
   delivery_id: string;
-  delivery_type?: string;
+  delivery_type?: DeliveryType | (string & {});
+  /** Freezer deliveries only. */
+  freezer?: FreezerBlock | null;
   order_id: string | null;
   order_number: string;
   status: DeliveryStatus;
@@ -101,7 +120,13 @@ export type RiderDelivery = {
   allowed_actions: RiderStage[];
   is_active: boolean;
   is_closed: boolean;
-  proof_required: { photo: boolean; delivery_code: boolean; recipient_name: boolean };
+  proof_required: {
+    photo: boolean;
+    delivery_code: boolean;
+    recipient_name: boolean;
+    /** Freezer deliveries: the installed unit's serial must be scanned or typed. */
+    unit_serial?: boolean;
+  };
   code_locked: boolean;
   code_attempts_left: number;
   pod_photo_url: string;
@@ -119,6 +144,8 @@ export type StageBody = {
   pod_note?: string;
   note?: string;
   eta_minutes?: number;
+  /** Freezer deliveries: the installed unit's serial (must match the allocated unit). */
+  unit_serial?: string;
 };
 
 export type ScanResult = RiderDelivery & { warning: string | null };

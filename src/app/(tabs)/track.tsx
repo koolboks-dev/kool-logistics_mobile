@@ -10,6 +10,7 @@ import {
   DetailRow,
   Divider,
   EmptyState,
+  FreezerBadge,
   Input,
   ScreenScroll,
   StatusPill,
@@ -17,7 +18,7 @@ import {
   Timeline,
   useToast,
 } from '@/components/ui';
-import { dropoffAddress, stageTimeline } from '@/lib/delivery';
+import { dropoffAddress, isFreezerDelivery, stageTimeline } from '@/lib/delivery';
 import { tokenFromScan } from '@/lib/qr';
 import { apiErrorCode, apiErrorMessage } from '@/store/base-api';
 import { useScanDeliveryMutation, type ScanResult } from '@/store/rider-api';
@@ -100,21 +101,41 @@ export default function Track() {
           <Card>
             <View style={{ gap: Spacing.md }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ gap: 2 }}>
-                  <Text variant="caption" tone="muted">
-                    ORDER
-                  </Text>
-                  <Text variant="subheading">#{result.order_number || result.delivery_id.slice(0, 8)}</Text>
-                </View>
+                {isFreezerDelivery(result) ? (
+                  <View style={{ gap: 2, flex: 1 }}>
+                    <FreezerBadge label="Freezer deployment" />
+                    <Text variant="subheading">{result.freezer?.model_name || result.items[0]?.name || 'Freezer'}</Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 2 }}>
+                    <Text variant="caption" tone="muted">
+                      ORDER
+                    </Text>
+                    <Text variant="subheading">#{result.order_number || result.delivery_id.slice(0, 8)}</Text>
+                  </View>
+                )}
                 <StatusPill status={result.status} size="sm" />
               </View>
 
               <Divider />
 
-              <DetailRow label="Pickup store" value={result.pickup.name || 'Store'} />
-              <DetailRow label="Retailer" value={result.customer?.name || result.dropoff.name || 'Retailer'} />
-              <DetailRow label="Destination" value={dropoffAddress(result)} />
-              <DetailRow label="Items" value={`${result.items_count} item(s)`} />
+              {isFreezerDelivery(result) ? (
+                <>
+                  <DetailRow label="Depot" value={result.pickup.name || result.freezer?.depot_name || 'Depot'} />
+                  <DetailRow label="Install at" value={result.customer?.name || result.dropoff.name || 'Retailer'} />
+                  <DetailRow label="Destination" value={dropoffAddress(result)} />
+                  {result.freezer?.serial_number ? (
+                    <DetailRow label="Serial" value={result.freezer.serial_number} />
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <DetailRow label="Pickup store" value={result.pickup.name || 'Store'} />
+                  <DetailRow label="Retailer" value={result.customer?.name || result.dropoff.name || 'Retailer'} />
+                  <DetailRow label="Destination" value={dropoffAddress(result)} />
+                  <DetailRow label="Items" value={`${result.items_count} item(s)`} />
+                </>
+              )}
 
               {result.warning ? (
                 <Text variant="caption" tone="danger">
@@ -134,7 +155,7 @@ export default function Track() {
           <Card>
             <View style={{ gap: Spacing.sm }}>
               <Text variant="label" tone="muted">
-                DELIVERY TIMELINE
+                {isFreezerDelivery(result) ? 'DEPLOYMENT TIMELINE' : 'DELIVERY TIMELINE'}
               </Text>
               <Timeline steps={stageTimeline(result)} />
             </View>

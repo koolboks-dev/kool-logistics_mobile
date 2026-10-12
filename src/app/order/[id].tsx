@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,6 +17,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { SerialScanner } from '@/components/SerialScanner';
 import {
   Button,
   Card,
@@ -23,6 +25,7 @@ import {
   Dialog,
   Divider,
   EmptyState,
+  FreezerBadge,
   Input,
   PinInput,
   ScreenScroll,
@@ -35,11 +38,14 @@ import {
 import {
   callPhone,
   dayTime,
+  deliveryRef,
   dropoffAddress,
   expectedLabel,
+  isFreezerDelivery,
+  normaliseSerial,
   openNavigation,
   openWhatsApp,
-  STAGE_ACTIONS,
+  stageActionsFor,
   stageTimeline,
 } from '@/lib/delivery';
 import { apiErrorCode, apiErrorDetails, apiErrorMessage, apiErrorStatus } from '@/store/base-api';
@@ -52,6 +58,9 @@ import {
   type RiderStage,
 } from '@/store/rider-api';
 import { Motion, Radius, Spacing, useTheme } from '@/theme';
+
+/** Shown when the backend rejects the serial (400 serial_mismatch). */
+const SERIAL_MISMATCH_MSG = "This serial doesn't match the freezer allocated to this delivery.";
 
 /** Backend limit is 6 MB of image bytes; stay well under it. */
 const MAX_POD_BYTES = 5 * 1024 * 1024;
@@ -100,6 +109,10 @@ export default function OrderDetail() {
   const [recipientName, setRecipientName] = useState('');
   const [podNote, setPodNote] = useState('');
   const [completing, setCompleting] = useState(false);
+  // Freezer deployments: the installed unit's serial (scanned or typed).
+  const [unitSerial, setUnitSerial] = useState('');
+  const [serialError, setSerialError] = useState<string>();
+  const [scanningSerial, setScanningSerial] = useState(false);
 
   // Problem report modal state
   const [showProblemModal, setShowProblemModal] = useState(false);
@@ -136,8 +149,20 @@ export default function OrderDetail() {
     );
   }
 
+  const freezer = isFreezerDelivery(delivery);
+  const fz = delivery.freezer ?? null;
+  const needsSerial = freezer || delivery.proof_required?.unit_serial === true;
+  const stageCopy = stageActionsFor(delivery);
+  const reference = freezer ? 'Freezer deployment' : `Order #${delivery.order_number || delivery.delivery_id.slice(0, 8)}`;
+  const modelName = fz?.model_name || delivery.items[0]?.name || 'Freezer';
+  const riderHello = freezer
+    ? `Hello, I am the Koolboks rider for the ${modelName} freezer deployment`
+    : `Hello, I am the Koolboks rider for order #${delivery.order_number}`;
   const nextStage = delivery.next_status;
-  const stageAction = nextStage ? STAGE_ACTIONS[nextStage] : null;
+  const stageAction = nextStage ? stageCopy[nextStage] : null;
+  const expectedSerial = fz?.serial_number ? normaliseSerial(fz.serial_number) : '';
+  const enteredSerial = normaliseSerial(unitSerial);
+  const serialLooksWrong = !!expectedSerial && !!enteredSerial && enteredSerial !== expectedSerial;
 
   const runStage = async (stage: RiderStage) => {
     if (stage === 'delivered') {
@@ -147,7 +172,7 @@ export default function OrderDetail() {
     try {
       await advanceDelivery({ id: delivery.delivery_id, target: stage }).unwrap();
       setConfirmStage(null);
-      toast.show(STAGE_ACTIONS[stage].done, 'success');
+      toast.show(stageCopy[stage].done, 'success');
     } catch (err) {
       setConfirmStage(null);
       if (apiErrorCode(err) === 'illegal_transition') refetch();
@@ -205,7 +230,17 @@ export default function OrderDetail() {
   const submitCompleteDelivery = async () => {
     let ok = true;
     if (!podPhotoUrl) {
-      setPhotoError(uploadingPhoto ? 'Wait for the photo to finish uploading.' : 'Take a proof-of-delivery photo.');
+      setPhotoError(
+        uploadingPhoto
+          ? 'Wait for the photo to finish uploading.'
+          : freezer
+            ? 'Take a photo of the installed freezer.'
+            : 'Take a proof-of-delivery photo.',
+      );
+      ok = false;
+    }
+    if (needsSerial && !enteredSerial) {
+      setSerialError("Scan or enter the freezer's serial number.");
       ok = false;
     }
     if (!/^\d{4}$/.test(deliveryCode)) {
@@ -213,7 +248,7 @@ export default function OrderDetail() {
       ok = false;
     }
     if (!recipientName.trim()) {
-      setNameError('Who received the goods?');
+      setNameError(freezer ? 'Who received the freezer?' : 'Who received the goods?');
       ok = false;
     }
     if (!ok) return;
@@ -228,12 +263,17 @@ export default function OrderDetail() {
           delivery_code: deliveryCode,
           recipient_name: recipientName.trim(),
           pod_note: podNote.trim() || undefined,
+          ...(needsSerial ? { unit_serial: enteredSerial } : {}),
         },
       }).unwrap();
       setShowCompleteModal(false);
-      router.replace(
-        `/result?status=delivered&ref=${encodeURIComponent(delivery.order_number ? `Order #${delivery.order_number}` : 'The order')}`,
-      );
+      setScanningSerial(false);
+      router.replace({
+        pathname: '/result',
+        params: freezer
+          ? { status: 'delivered', kind: 'freezer', ref: `The ${modelName} freezer` }
+          : { status: 'delivered', ref: delivery.order_number ? deliveryRef(delivery) : 'The order' },
+      });
     } catch (err) {
       const code = apiErrorCode(err);
       const details = apiErrorDetails(err);
@@ -253,7 +293,11 @@ export default function OrderDetail() {
         if (fields.pod_photo_url || fields.photo) setPhotoError(fields.pod_photo_url || fields.photo);
         if (fields.delivery_code) setCodeError(fields.delivery_code);
         if (fields.recipient_name) setNameError(fields.recipient_name);
+        if (fields.unit_serial) setSerialError(fields.unit_serial);
         if (!Object.keys(fields).length) toast.show(apiErrorMessage(err), 'error');
+      } else if (code === 'serial_mismatch') {
+        setSerialError(SERIAL_MISMATCH_MSG);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       } else {
         if (code === 'illegal_transition') refetch();
         toast.show(apiErrorMessage(err, 'Could not complete the delivery. Try again.'), 'error');
@@ -290,7 +334,7 @@ export default function OrderDetail() {
   return (
     <>
       <ScreenScroll
-        title={`Order #${delivery.order_number || delivery.delivery_id.slice(0, 8)}`}
+        title={reference}
         onBack={() => router.back()}
         right={<StatusPill status={delivery.status} size="sm" />}
         contentContainerStyle={styles.scroll}
@@ -323,16 +367,42 @@ export default function OrderDetail() {
           <Card>
             <View style={{ gap: Spacing.xs }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text variant="caption" tone="muted">
-                  REFERENCE
-                </Text>
+                {freezer ? (
+                  <FreezerBadge label="Freezer deployment" />
+                ) : (
+                  <Text variant="caption" tone="muted">
+                    REFERENCE
+                  </Text>
+                )}
                 {delivery.is_delayed && <DelayBadge />}
               </View>
-              <Text variant="heading">#{delivery.order_number || delivery.delivery_id.slice(0, 8)}</Text>
-              <Text variant="caption" tone="secondary">
-                Assigned {dayTime(delivery.assigned_at)}
-                {delivery.items_count ? ` · ${delivery.items_count} item${delivery.items_count === 1 ? '' : 's'}` : ''}
-              </Text>
+              {freezer ? (
+                <>
+                  <Text variant="heading">{modelName}</Text>
+                  {fz?.serial_number ? (
+                    <Text variant="caption" tone="secondary">
+                      Serial {fz.serial_number}
+                    </Text>
+                  ) : null}
+                  <Text variant="caption" tone="secondary">
+                    Collect from {delivery.pickup.name || fz?.depot_name || 'the depot'} · install at{' '}
+                    {delivery.dropoff.name || delivery.customer?.name || 'the retailer'}
+                  </Text>
+                  <Text variant="caption" tone="secondary">
+                    Assigned {dayTime(delivery.assigned_at)}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text variant="heading">#{delivery.order_number || delivery.delivery_id.slice(0, 8)}</Text>
+                  <Text variant="caption" tone="secondary">
+                    Assigned {dayTime(delivery.assigned_at)}
+                    {delivery.items_count
+                      ? ` · ${delivery.items_count} item${delivery.items_count === 1 ? '' : 's'}`
+                      : ''}
+                  </Text>
+                </>
+              )}
               {delivery.expected_delivery_at ? (
                 <Text variant="caption" tone={delivery.is_delayed ? 'danger' : 'secondary'}>
                   {expectedLabel(delivery)}
@@ -378,7 +448,7 @@ export default function OrderDetail() {
                 />
                 {canSkipToPickup && (
                   <Button
-                    label="Already at the store — confirm pickup"
+                    label={freezer ? 'Already at the depot — confirm collection' : 'Already at the store — confirm pickup'}
                     variant="ghost"
                     size="md"
                     onPress={() => setConfirmStage('picked_up')}
@@ -396,12 +466,12 @@ export default function OrderDetail() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
                 <Ionicons name="cube-outline" size={18} color={colors.brand} />
                 <Text variant="label" tone="muted">
-                  PICKUP (WHOLESALER)
+                  {freezer ? 'PICKUP (DEPOT)' : 'PICKUP (WHOLESALER)'}
                 </Text>
               </View>
 
               <View style={{ gap: 2 }}>
-                <Text variant="bodyStrong">{delivery.pickup.name || 'Store'}</Text>
+                <Text variant="bodyStrong">{delivery.pickup.name || (freezer ? fz?.depot_name || 'Depot' : 'Store')}</Text>
                 <Text variant="caption" tone="secondary">
                   {delivery.pickup.address || 'Address on file'}
                 </Text>
@@ -433,7 +503,7 @@ export default function OrderDetail() {
                     onPress={() =>
                       openWhatsApp(
                         delivery.pickup.whatsapp_number || delivery.pickup.phone,
-                        `Hello, I am the Koolboks rider for order #${delivery.order_number}`,
+                        riderHello,
                       )
                     }
                   />
@@ -464,7 +534,7 @@ export default function OrderDetail() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
                 <Ionicons name="location-outline" size={18} color={colors.success} />
                 <Text variant="label" tone="muted">
-                  DROPOFF (RETAILER)
+                  {freezer ? 'INSTALL AT (RETAILER)' : 'DROPOFF (RETAILER)'}
                 </Text>
               </View>
 
@@ -503,7 +573,9 @@ export default function OrderDetail() {
                     onPress={() =>
                       openWhatsApp(
                         delivery.customer?.phone || delivery.dropoff.phone,
-                        `Hello, I am the Koolboks rider delivering order #${delivery.order_number}`,
+                        freezer
+                          ? `Hello, I am the Koolboks rider bringing your ${modelName} freezer to install`
+                          : `Hello, I am the Koolboks rider delivering order #${delivery.order_number}`,
                       )
                     }
                   />
@@ -532,7 +604,7 @@ export default function OrderDetail() {
           <Card>
             <View style={{ gap: Spacing.sm }}>
               <Text variant="label" tone="muted">
-                ITEMS ({delivery.items_count})
+                {freezer ? 'FREEZER' : `ITEMS (${delivery.items_count})`}
               </Text>
               <Divider />
               {delivery.items?.map((item, idx) => (
@@ -545,6 +617,15 @@ export default function OrderDetail() {
                   </Text>
                 </View>
               ))}
+              {freezer ? (
+                <View style={[styles.installNote, { backgroundColor: colors.infoSoft }]}>
+                  <Ionicons name="construct-outline" size={16} color={colors.info} />
+                  <Text variant="caption" style={{ color: colors.info, flex: 1 }}>
+                    Install step: set up the freezer at the retailer, then scan its serial and photograph it
+                    installed to complete.
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </Card>
         </Animated.View>
@@ -554,7 +635,7 @@ export default function OrderDetail() {
           <Card>
             <View style={{ gap: Spacing.sm }}>
               <Text variant="label" tone="muted">
-                DELIVERY PROGRESS
+                {freezer ? 'DEPLOYMENT PROGRESS' : 'DELIVERY PROGRESS'}
               </Text>
               <Timeline steps={timelineSteps} />
             </View>
@@ -565,7 +646,7 @@ export default function OrderDetail() {
         {delivery.is_active && (
           <Animated.View entering={FadeInDown.delay(360).duration(Motion.base)}>
             <Button
-              label="Report an issue with this delivery"
+              label={freezer ? 'Report an issue with this deployment' : 'Report an issue with this delivery'}
               variant="outline"
               icon="alert-circle-outline"
               onPress={() => setShowProblemModal(true)}
@@ -577,8 +658,8 @@ export default function OrderDetail() {
       <Dialog
         visible={confirmStage !== null}
         onClose={() => setConfirmStage(null)}
-        title={confirmStage ? STAGE_ACTIONS[confirmStage].label : ''}
-        message={confirmStage ? STAGE_ACTIONS[confirmStage].confirm : undefined}
+        title={confirmStage ? stageCopy[confirmStage].label : ''}
+        message={confirmStage ? stageCopy[confirmStage].confirm : undefined}
         confirmLabel="Confirm"
         loading={advancing}
         onConfirm={() => confirmStage && runStage(confirmStage)}
@@ -592,21 +673,77 @@ export default function OrderDetail() {
         >
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text variant="title">Complete Delivery</Text>
-              <Pressable onPress={() => setShowCompleteModal(false)} hitSlop={10}>
+              <Text variant="title">{freezer ? 'Complete installation' : 'Complete Delivery'}</Text>
+              <Pressable
+                onPress={() => {
+                  setShowCompleteModal(false);
+                  setScanningSerial(false);
+                }}
+                hitSlop={10}
+              >
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </Pressable>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md }}>
               <Text variant="caption" tone="secondary">
-                To hand over goods, snap a proof photo and ask the retailer for their 4-digit code.
+                {freezer
+                  ? "Once the freezer is installed, scan its serial, photograph it in place and ask the retailer for their 4-digit code."
+                  : 'To hand over goods, snap a proof photo and ask the retailer for their 4-digit code.'}
               </Text>
+
+              {/* Freezer serial — must match the unit allocated to this deployment */}
+              {needsSerial ? (
+                <View style={{ gap: Spacing.xs }}>
+                  <Text variant="label" tone="muted">
+                    FREEZER SERIAL NUMBER *
+                  </Text>
+                  {scanningSerial ? (
+                    <SerialScanner
+                      onScanned={(data) => {
+                        setUnitSerial(normaliseSerial(data));
+                        setSerialError(undefined);
+                        setScanningSerial(false);
+                      }}
+                      onClose={() => setScanningSerial(false)}
+                    />
+                  ) : (
+                    <Button
+                      label={enteredSerial ? 'Scan again' : 'Scan serial barcode'}
+                      icon="barcode-outline"
+                      variant={enteredSerial ? 'outline' : 'primary'}
+                      onPress={() => {
+                        setSerialError(undefined);
+                        setScanningSerial(true);
+                      }}
+                    />
+                  )}
+                  <Input
+                    placeholder="Or type the serial number"
+                    value={unitSerial}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    onChangeText={(t) => {
+                      setUnitSerial(t);
+                      setSerialError(undefined);
+                    }}
+                    error={serialError}
+                    hint={
+                      serialLooksWrong
+                        ? "This doesn't look like the allocated freezer's serial — check the rating plate."
+                        : enteredSerial && enteredSerial === expectedSerial
+                          ? 'Matches the allocated freezer.'
+                          : undefined
+                    }
+                    leftIcon="barcode-outline"
+                  />
+                </View>
+              ) : null}
 
               {/* Photo upload / capture */}
               <View style={{ gap: Spacing.xs }}>
                 <Text variant="label" tone="muted">
-                  PROOF OF DELIVERY PHOTO *
+                  {freezer ? 'INSTALLED FREEZER PHOTO *' : 'PROOF OF DELIVERY PHOTO *'}
                 </Text>
                 {podPhotoUri ? (
                   <View style={{ alignItems: 'center', gap: Spacing.xs }}>
@@ -684,13 +821,13 @@ export default function OrderDetail() {
               {/* Note */}
               <Input
                 label="Optional note"
-                placeholder="e.g. Handed to store manager"
+                placeholder={freezer ? 'e.g. Installed near the shop entrance' : 'e.g. Handed to store manager'}
                 value={podNote}
                 onChangeText={setPodNote}
               />
 
               <Button
-                label={completing ? 'Completing…' : 'Submit handover'}
+                label={completing ? 'Completing…' : freezer ? 'Submit installation' : 'Submit handover'}
                 loading={completing}
                 disabled={uploadingPhoto}
                 onPress={submitCompleteDelivery}
@@ -793,6 +930,14 @@ const styles = StyleSheet.create({
   },
   actionRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  installNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    marginTop: Spacing.xs,
+  },
   modalBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',

@@ -39,6 +39,8 @@ type DeliveryUpdateEvent = {
   status_display: string;
   rider?: { id: string; name: string; phone: string } | null;
   at: string;
+  /** Present ('freezer') on freezer deployments (Task 9). */
+  delivery_type?: string;
 };
 
 type NotificationNewEvent = {
@@ -143,7 +145,13 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           id: n.id || `n-${Date.now()}`,
           title: n.title,
           message: n.message,
-          icon: kind === 'delivery_assigned' ? 'bicycle-outline' : bad ? 'alert-circle-outline' : 'notifications-outline',
+          icon: bad
+            ? 'alert-circle-outline'
+            : n.metadata?.delivery_type === 'freezer'
+              ? 'snow-outline'
+              : kind === 'delivery_assigned'
+                ? 'bicycle-outline'
+                : 'notifications-outline',
           tone: bad ? 'danger' : 'brand',
           // Unassigned/cancelled deliveries are no longer viewable by this rider.
           link: deliveryId && !bad ? `/order/${deliveryId}` : '/alerts',
@@ -173,11 +181,14 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
       const mine = p.rider?.id != null && p.rider.id === userId;
       let alert: Banner | null = null;
-      const ref = p.order_number ? `order #${p.order_number}` : 'a delivery';
+      const freezer = p.delivery_type === 'freezer';
+      const ref = freezer ? 'a freezer deployment' : p.order_number ? `order #${p.order_number}` : 'a delivery';
       if (p.status === 'cancelled') {
-        alert = { id: `c-${id}`, title: 'Delivery cancelled', message: `Dispatch cancelled ${ref}.`, tone: 'danger', icon: 'close-circle-outline', link: '/(tabs)/orders' };
+        alert = { id: `c-${id}`, title: freezer ? 'Freezer deployment cancelled' : 'Delivery cancelled', message: `Dispatch cancelled ${ref}.`, tone: 'danger', icon: 'close-circle-outline', link: '/(tabs)/orders' };
       } else if (p.kind === 'assignment' && mine && p.status === 'assigned') {
-        alert = { id: `a-${id}`, title: 'New delivery assigned', message: `Pick up ${ref}.`, tone: 'brand', icon: 'bicycle-outline', link: `/order/${id}` };
+        alert = freezer
+          ? { id: `a-${id}`, title: 'Freezer deployment assigned', message: 'Collect the freezer from the depot and install it at the retailer.', tone: 'brand', icon: 'snow-outline', link: `/order/${id}` }
+          : { id: `a-${id}`, title: 'New delivery assigned', message: `Pick up ${ref}.`, tone: 'brand', icon: 'bicycle-outline', link: `/order/${id}` };
       } else if (p.kind === 'assignment' && !mine) {
         alert = { id: `u-${id}`, title: 'Delivery reassigned', message: `${ref[0].toUpperCase()}${ref.slice(1)} is no longer assigned to you.`, tone: 'danger', icon: 'swap-horizontal-outline', link: '/(tabs)/orders' };
       }
