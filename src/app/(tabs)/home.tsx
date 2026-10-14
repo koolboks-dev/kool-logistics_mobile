@@ -38,18 +38,14 @@ export default function Home() {
   const toast = useToast();
   const { user } = useSession();
 
-  // Live updates come over the socket; poll only while it is down.
-  const { connected } = useRealtime();
-  const pollingInterval = connected ? 0 : 60_000;
-
-  const { data: meData, refetch: refetchMe, isFetching: fetchingMe } = useRiderMeQuery(undefined, { pollingInterval });
+  const { data: meData, refetch: refetchMe, isFetching: fetchingMe } = useRiderMeQuery();
   const [setAvailability, { isLoading: togglingDuty }] = useSetAvailabilityMutation();
 
   const {
     data: activeDeliveries,
     refetch: refetchActive,
     isFetching: fetchingActive,
-  } = useAssignedDeliveriesQuery({ active: true }, { pollingInterval });
+  } = useAssignedDeliveriesQuery({ active: true });
 
   const {
     data: closedDeliveries,
@@ -107,19 +103,11 @@ export default function Home() {
 
   const firstName = (rider?.name || user?.first_name || user?.name || 'Rider').split(' ')[0];
 
-  // Re-render every 5 s so "updated 12s ago" stays honest.
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (location.state !== 'sharing') return;
-    const t = setInterval(() => setNow(Date.now()), 5000);
-    return () => clearInterval(t);
-  }, [location.state]);
-
   const locationBadgeText = (() => {
     switch (location.state) {
       case 'sharing':
         return location.lastSentAt
-          ? `Sharing location · updated ${ago(location.lastSentAt, Math.max(now, location.lastSentAt))}`
+          ? `Sharing location · updated ${ago(location.lastSentAt)}`
           : 'Sharing location · GPS active';
       case 'starting':
         return 'Starting location sharing…';

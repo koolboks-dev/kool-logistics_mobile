@@ -102,21 +102,39 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     });
 
     let refreshing = false;
+    let lastDisconnectedAt = 0;
+    let lastRefreshAttempt = 0;
 
     socket.on('connect', () => {
       setConnected(true);
-      refreshAll(); // catch up on anything missed while disconnected
+      const wasDisconnectedFor = Date.now() - lastDisconnectedAt;
+      // Only refresh all queries if we were disconnected for more than 15 seconds
+      // to avoid infinite re-render loops on rapid reconnects or token refreshes.
+      if (lastDisconnectedAt > 0 && wasDisconnectedFor > 15_000) {
+        refreshAll();
+      }
     });
-    socket.on('disconnect', () => setConnected(false));
+
+    socket.on('disconnect', () => {
+      setConnected(false);
+      lastDisconnectedAt = Date.now();
+    });
+
     socket.on('connect_error', async (err: Error) => {
       setConnected(false);
-      // A middleware rejection stops auto-reconnect; refresh and the token
-      // listener below reconnects with the new token.
-      if ((err.message === 'token_invalid' || err.message === 'unauthorized') && !refreshing) {
+      lastDisconnectedAt = Date.now();
+      const now = Date.now();
+      // Throttle refreshSession to at most once every 10 seconds to avoid infinite loops.
+      if (
+        (err.message === 'token_invalid' || err.message === 'unauthorized') &&
+        !refreshing &&
+        now - lastRefreshAttempt > 10_000
+      ) {
+        lastRefreshAttempt = now;
         refreshing = true;
         const ok = await refreshSession();
         refreshing = false;
-        if (ok && !socket.active) socket.connect();
+        if (ok && !socket.connected) socket.connect();
       }
     });
 
@@ -204,10 +222,9 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       }, 1500);
     });
 
-    // New access token (refreshed here or by an HTTP 401) → reconnect with it.
+    // New access token (refreshed here or by an HTTP 401) → connect if not connected.
     const unsubTokens = onTokensChange((tokens) => {
-      if (tokens?.access) {
-        socket.disconnect();
+      if (tokens?.access && !socket.connected) {
         socket.connect();
       }
     });
