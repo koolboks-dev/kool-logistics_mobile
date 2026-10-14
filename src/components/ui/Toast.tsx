@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -49,7 +49,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               exiting={FadeOutUp.duration(180)}
               style={[styles.toast, Elevation.md, { backgroundColor: c.surface, borderColor: c.border }]}
             >
-              <Ionicons name={icon} size={19} color={tone} />
+              <Glyph name={icon} size={19} color={tone} />
               <Text variant="bodyStrong" style={{ flex: 1 }} numberOfLines={2}>
                 {t.message}
               </Text>

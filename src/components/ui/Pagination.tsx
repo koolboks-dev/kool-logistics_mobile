@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -37,7 +37,7 @@ export function Pagination({
   return (
     <View style={styles.row}>
       <Pressable onPress={() => go(page - 1)} hitSlop={6} style={styles.arrow}>
-        <Ionicons name="chevron-back" size={18} color={page === 1 ? c.textMuted : c.text} />
+        <Glyph name="chevron-back" size={18} color={page === 1 ? c.textMuted : c.text} />
       </Pressable>
 
       {pages.map((p, i) =>
@@ -68,7 +68,7 @@ export function Pagination({
       )}
 
       <Pressable onPress={() => go(page + 1)} hitSlop={6} style={styles.arrow}>
-        <Ionicons name="chevron-forward" size={18} color={page === pageCount ? c.textMuted : c.text} />
+        <Glyph name="chevron-forward" size={18} color={page === pageCount ? c.textMuted : c.text} />
       </Pressable>
     </View>
   );

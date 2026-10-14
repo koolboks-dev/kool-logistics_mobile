@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -9,7 +9,7 @@ import { GlassSurface } from './GlassSurface';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export type IconButtonProps = {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: GlyphName;
   onPress?: () => void;
   size?: number;
   variant?: 'plain' | 'filled' | 'soft' | 'glass';
@@ -53,7 +53,7 @@ export function IconButton({
           tint={c.surfaceAlt}
           style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name={icon} size={size * 0.5} color={color ?? c.text} />
+          <Glyph name={icon} size={size * 0.5} color={color ?? c.text} />
         </GlassSurface>
       </AnimatedPressable>
     );
@@ -76,7 +76,7 @@ export function IconButton({
         style,
       ]}
     >
-      <Ionicons name={icon} size={size * 0.5} color={fg} />
+      <Glyph name={icon} size={size * 0.5} color={fg} />
     </AnimatedPressable>
   );
 }

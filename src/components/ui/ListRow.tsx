@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -13,7 +13,7 @@ export function ListRow({
   onPress,
   destructive = false,
 }: {
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: GlyphName;
   title: string;
   subtitle?: string;
   right?: React.ReactNode;
@@ -36,7 +36,7 @@ export function ListRow({
     >
       {icon && (
         <View style={[styles.iconWrap, { backgroundColor: destructive ? c.dangerSoft : c.surfaceAlt }]}>
-          <Ionicons name={icon} size={18} color={destructive ? c.danger : c.brand} />
+          <Glyph name={icon} size={18} color={destructive ? c.danger : c.brand} />
         </View>
       )}
       <View style={{ flex: 1, gap: 1 }}>
@@ -49,7 +49,7 @@ export function ListRow({
           </Text>
         )}
       </View>
-      {right ?? (onPress && <Ionicons name="chevron-forward" size={17} color={c.textMuted} />)}
+      {right ?? (onPress && <Glyph name="chevron-forward" size={17} color={c.textMuted} />)}
     </Pressable>
   );
 }

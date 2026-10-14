@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -41,8 +41,8 @@ export function Timeline({ steps }: { steps: TimelineStep[] }) {
                   },
                 ]}
               >
-                {s.state === 'done' && <Ionicons name="checkmark" size={11} color="#fff" />}
-                {s.state === 'failed' && <Ionicons name="close" size={11} color="#fff" />}
+                {s.state === 'done' && <Glyph name="checkmark" size={11} color="#fff" />}
+                {s.state === 'failed' && <Glyph name="close" size={11} color="#fff" />}
                 {s.state === 'current' && <View style={styles.pulse} />}
               </View>
               {!last && <View style={[styles.line, { backgroundColor: s.state === 'done' ? c.success : c.border }]} />}

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -60,7 +60,7 @@ export function Select({
           {selected?.label ?? placeholder}
         </Text>
         <Animated.View style={chevron}>
-          <Ionicons name="chevron-down" size={18} color={c.textSecondary} />
+          <Glyph name="chevron-down" size={18} color={c.textSecondary} />
         </Animated.View>
       </Pressable>
 
@@ -102,7 +102,7 @@ export function Select({
                       <Text tone={active ? 'brand' : 'default'} style={{ flex: 1 }}>
                         {o.label}
                       </Text>
-                      {active && <Ionicons name="checkmark" size={19} color={c.brand} />}
+                      {active && <Glyph name="checkmark" size={19} color={c.brand} />}
                     </Pressable>
                   </View>
                 );

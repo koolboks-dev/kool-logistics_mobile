@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
@@ -23,7 +23,7 @@ export function SearchBar({
         { backgroundColor: c.surfaceAlt, borderRadius: Radius.pill, height: Layout.controlHeightSm },
       ]}
     >
-      <Ionicons name="search" size={17} color={c.textMuted} />
+      <Glyph name="search" size={17} color={c.textMuted} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -36,7 +36,7 @@ export function SearchBar({
       {value.length > 0 && (
         <Animated.View entering={FadeIn.duration(120)} exiting={FadeOut.duration(120)}>
           <Pressable onPress={() => onChangeText('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={17} color={c.textMuted} />
+            <Glyph name="close-circle" size={17} color={c.textMuted} />
           </Pressable>
         </Animated.View>
       )}

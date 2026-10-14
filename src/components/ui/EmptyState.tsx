@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import { View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -13,7 +13,7 @@ export function EmptyState({
   actionLabel,
   onAction,
 }: {
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: GlyphName;
   title: string;
   description?: string;
   actionLabel?: string;
@@ -35,7 +35,7 @@ export function EmptyState({
           justifyContent: 'center',
         }}
       >
-        <Ionicons name={icon} size={34} color={c.textMuted} />
+        <Glyph name={icon} size={34} color={c.textMuted} />
       </View>
       <Text variant="subheading" center>
         {title}

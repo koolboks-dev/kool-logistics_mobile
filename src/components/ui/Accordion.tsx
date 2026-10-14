@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { useState, type ReactNode } from 'react';
 import { LayoutAnimation, Platform, Pressable, StyleSheet, UIManager, View } from 'react-native';
@@ -45,7 +45,7 @@ export function Accordion({
         </Text>
         {right}
         <Animated.View style={chevron}>
-          <Ionicons name="chevron-down" size={18} color={c.textSecondary} />
+          <Glyph name="chevron-down" size={18} color={c.textSecondary} />
         </Animated.View>
       </Pressable>
 

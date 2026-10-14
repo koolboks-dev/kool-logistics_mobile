@@ -3,7 +3,7 @@
  * (Task 9 freezer installs). Rendered inside the completion sheet rather than
  * as a second modal, so it works on both platforms without nested modals.
  */
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import { CameraView, useCameraPermissions, type BarcodeType } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useRef, useState } from 'react';
@@ -47,7 +47,7 @@ export function SerialScanner({
   if (!permission.granted) {
     return (
       <View style={[styles.box, styles.center, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
-        <Ionicons name="camera-outline" size={28} color={colors.textSecondary} />
+        <Glyph name="camera-outline" size={28} color={colors.textSecondary} />
         <Text variant="caption" tone="secondary" center>
           Camera access is needed to scan the freezer&apos;s serial barcode. You can also type it below.
         </Text>
@@ -88,7 +88,7 @@ export function SerialScanner({
           onPress={() => setTorch((t) => !t)}
           style={[styles.ctrlBtn, torch && { backgroundColor: colors.brand }]}
         >
-          <Ionicons name={torch ? 'flash' : 'flash-outline'} size={18} color="#FFF" />
+          <Glyph name={torch ? 'flash' : 'flash-outline'} size={18} color="#FFF" />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -96,7 +96,7 @@ export function SerialScanner({
           onPress={onClose}
           style={styles.ctrlBtn}
         >
-          <Ionicons name="close" size={18} color="#FFF" />
+          <Glyph name="close" size={18} color="#FFF" />
         </Pressable>
       </View>
     </View>

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -10,8 +10,8 @@ export type InputProps = Omit<TextInputProps, 'style'> & {
   label?: string;
   hint?: string;
   error?: string;
-  leftIcon?: keyof typeof Ionicons.glyphMap;
-  rightIcon?: keyof typeof Ionicons.glyphMap;
+  leftIcon?: GlyphName;
+  rightIcon?: GlyphName;
   onRightIconPress?: () => void;
   /** Renders a show/hide toggle and manages secureTextEntry. */
   password?: boolean;
@@ -60,7 +60,7 @@ export function Input({
           borderStyle,
         ]}
       >
-        {leftIcon && <Ionicons name={leftIcon} size={18} color={focused ? c.brand : c.textMuted} />}
+        {leftIcon && <Glyph name={leftIcon} size={18} color={focused ? c.brand : c.textMuted} />}
 
         <TextInput
           placeholderTextColor={c.textMuted}
@@ -81,11 +81,11 @@ export function Input({
 
         {password ? (
           <Pressable onPress={() => setHidden((h) => !h)} hitSlop={8}>
-            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={19} color={c.textMuted} />
+            <Glyph name={hidden ? 'eye-outline' : 'eye-off-outline'} size={19} color={c.textMuted} />
           </Pressable>
         ) : rightIcon ? (
           <Pressable onPress={onRightIconPress} hitSlop={8}>
-            <Ionicons name={rightIcon} size={19} color={c.textMuted} />
+            <Glyph name={rightIcon} size={19} color={c.textMuted} />
           </Pressable>
         ) : null}
       </Animated.View>

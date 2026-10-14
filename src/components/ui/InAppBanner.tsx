@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,7 @@ export type InAppBannerItem = {
   title: string;
   message?: string;
   tone?: 'brand' | 'danger' | 'info';
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: GlyphName;
 };
 
 /**
@@ -50,7 +50,7 @@ export function InAppBanner({
           style={styles.body}
         >
           <View style={[styles.icon, { backgroundColor: soft }]}>
-            <Ionicons name={item.icon ?? 'notifications-outline'} size={18} color={tone} />
+            <Glyph name={item.icon ?? 'notifications-outline'} size={18} color={tone} />
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text variant="bodyStrong" numberOfLines={1}>
@@ -64,7 +64,7 @@ export function InAppBanner({
           </View>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Dismiss" hitSlop={10} onPress={onDismiss}>
-          <Ionicons name="close" size={18} color={c.textMuted} />
+          <Glyph name="close" size={18} color={c.textMuted} />
         </Pressable>
       </Animated.View>
     </View>

@@ -15,6 +15,12 @@
  *   - `delivery:update`   → refresh delivery caches; banner on a new
  *     assignment, a reassignment away from this rider, or a cancellation
  *     (deduplicated against the matching `notification:new`).
+ *   - `deliveries:changed` → ids-only "something changed" for this rider's
+ *     deliveries: refetch the delivery lists and the touched deliveries.
+ *
+ * Socket only — no push service and no polling. Coming back to the
+ * foreground reconnects and refetches, so nothing missed while the app was
+ * in the background is lost.
  */
 import * as Haptics from 'expo-haptics';
 import { router, type Href } from 'expo-router';
@@ -176,6 +182,18 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           notificationId: n.id,
         },
         deliveryId,
+      );
+    });
+
+    socket.on('deliveries:changed', (p: { ids?: string[] }) => {
+      const ids = Array.isArray(p?.ids) ? p.ids : [];
+      dispatch(
+        baseApi.util.invalidateTags([
+          ...ids.map((id) => ({ type: 'Delivery' as const, id })),
+          { type: 'Deliveries', id: 'ACTIVE' },
+          { type: 'Deliveries', id: 'DONE' },
+          'RiderMe',
+        ]),
       );
     });
 

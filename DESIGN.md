@@ -206,13 +206,21 @@ Every tab press fires haptics — a tab is the most-used control in the app.
 
 ## 9. Icons
 
-**Tab bar and brand icons are custom SVG** (`src/components/icons`) — 24×24
-grid, 1.8 stroke, round caps, with an `active` filled state. Custom because
-platform icon sets diverge visually.
+**Every icon is custom SVG** (`src/components/icons`) — 24×24 grid, 1.8
+stroke, round caps and joins. Custom because platform icon sets diverge
+visually, and an icon font is a large download.
 
-Ionicons is allowed for incidental affordances (chevrons, eye toggle, small row
-icons). **Import it directly** — `@expo/vector-icons/Ionicons` — never from the
-barrel, which bundles every icon font (~4 MB).
+- **Tab bar and brand icons** — `Icons` in `index.tsx`, with an `active`
+  filled state for the selected tab.
+- **Everything else** (buttons, inputs, rows, banners, empty states, status
+  rows) — `<Glyph name="call-outline" size={18} color={c.brand} />`. The
+  drawings live in `glyph-data.ts`; names keep the Ionicons spelling the app
+  already used. `-outline` names are line icons; the others (e.g.
+  `checkmark-circle`, `flash`) add a soft filled shape (16% of the colour).
+
+Do not use Ionicons or another icon font. Need a new icon? Draw it in
+`glyph-data.ts` on the same grid and stroke, and check it next to its
+neighbours.
 
 ---
 

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
@@ -216,7 +216,7 @@ export default function Home() {
                 },
               ]}
             >
-              <Ionicons
+              <Glyph
                 name={
                   location.state === 'sharing'
                     ? 'navigate-circle'
@@ -299,7 +299,7 @@ export default function Home() {
           {activeCount === 0 ? (
             <Card variant="outlined" style={styles.emptyCard}>
               <View style={styles.emptyInner}>
-                <Ionicons name="cube-outline" size={32} color={colors.textMuted} />
+                <Glyph name="cube-outline" size={32} color={colors.textMuted} />
                 <Text variant="bodyStrong">No active deliveries right now</Text>
                 <Text variant="caption" tone="secondary" center>
                   {isAvailable

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -14,7 +14,7 @@ export type ButtonProps = {
   onPress?: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: GlyphName;
   iconPosition?: 'left' | 'right';
   loading?: boolean;
   disabled?: boolean;
@@ -106,7 +106,7 @@ export function Button({
       ) : (
         <View style={styles.content}>
           {icon && iconPosition === 'left' && (
-            <Ionicons name={icon} size={iconSizes[size]} color={p.fg} />
+            <Glyph name={icon} size={iconSizes[size]} color={p.fg} />
           )}
           <Text
             style={{ color: p.fg, fontFamily: FontFamily.semibold, fontSize: fontSizes[size] }}
@@ -115,7 +115,7 @@ export function Button({
             {label}
           </Text>
           {icon && iconPosition === 'right' && (
-            <Ionicons name={icon} size={iconSizes[size]} color={p.fg} />
+            <Glyph name={icon} size={iconSizes[size]} color={p.fg} />
           )}
         </View>
       )}

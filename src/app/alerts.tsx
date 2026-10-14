@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -24,7 +24,7 @@ import {
 } from '@/store/notifications-api';
 import { Motion, Radius, Spacing, useTheme } from '@/theme';
 
-const META: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
+const META: Record<string, { icon: GlyphName; label: string }> = {
   delivery: { icon: 'bicycle-outline', label: 'Delivery' },
   payment: { icon: 'card-outline', label: 'Payment' },
   system: { icon: 'information-circle-outline', label: 'System' },
@@ -133,7 +133,7 @@ export default function Alerts() {
                                 },
                               ]}
                             >
-                              <Ionicons
+                              <Glyph
                                 name={meta.icon}
                                 size={20}
                                 color={n.is_read ? colors.textSecondary : colors.brand}

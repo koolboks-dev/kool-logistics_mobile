@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import { View, type ViewStyle } from 'react-native';
 
 import { FontFamily, FontSize, Radius, Spacing, useColors } from '@/theme';
@@ -135,7 +135,7 @@ export function FreezerBadge({ label = 'Freezer', style }: { label?: string; sty
         style,
       ]}
     >
-      <Ionicons name="snow-outline" size={11} color={c.info} />
+      <Glyph name="snow-outline" size={11} color={c.info} />
       <Text style={{ color: c.info, fontFamily: FontFamily.semibold, fontSize: FontSize.xs }}>{label}</Text>
     </View>
   );

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -120,7 +120,7 @@ export default function Scan() {
               onPress={() => setTorch((t) => !t)}
               style={[styles.ctrlBtn, torch && styles.ctrlBtnActive]}
             >
-              <Ionicons name={torch ? 'flash' : 'flash-outline'} size={22} color="#FFF" />
+              <Glyph name={torch ? 'flash' : 'flash-outline'} size={22} color="#FFF" />
             </Pressable>
 
             <Pressable
@@ -133,7 +133,7 @@ export default function Scan() {
               {decoding ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
-                <Ionicons name="images-outline" size={22} color="#FFF" />
+                <Glyph name="images-outline" size={22} color="#FFF" />
               )}
             </Pressable>
           </View>
@@ -149,7 +149,7 @@ export default function Scan() {
           onPress={() => router.navigate('/(tabs)/home')}
           style={styles.closeBtn}
         >
-          <Ionicons name="close" size={24} color="#FFF" />
+          <Glyph name="close" size={24} color="#FFF" />
         </Pressable>
       </View>
     </View>

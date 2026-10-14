@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { useRef, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -10,7 +10,7 @@ import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reani
 import { FontFamily, FontSize, Radius, Spacing, useColors } from '@/theme';
 
 export type SwipeAction = {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: GlyphName;
   label: string;
   color: string;
   onPress: () => void;
@@ -95,7 +95,7 @@ function ActionPane({
       ]}
     >
       <Animated.View style={[styles.paneInner, iconStyle]}>
-        <Ionicons name={action.icon} size={20} color="#fff" />
+        <Glyph name={action.icon} size={20} color="#fff" />
         <Animated.Text style={styles.paneLabel} numberOfLines={1}>
           {action.label}
         </Animated.Text>

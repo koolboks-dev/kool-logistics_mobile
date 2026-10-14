@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -9,7 +9,7 @@ import { Button, Card, GlassBackButton, Text } from '@/components/ui';
 import { useLocationSharing } from '@/store/location';
 import { Layout, Motion, Radius, Spacing, useTheme } from '@/theme';
 
-const POINTS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
+const POINTS: { icon: GlyphName; title: string; body: string }[] = [
   {
     icon: 'bicycle-outline',
     title: 'Only while you are working',
@@ -56,7 +56,7 @@ export default function LocationPermission() {
       <View style={styles.body}>
         <Animated.View entering={FadeInDown.duration(Motion.base)} style={styles.hero}>
           <View style={[styles.mark, { backgroundColor: colors.brandSoft, borderRadius: Radius.xl }]}>
-            <Ionicons name="navigate" size={40} color={colors.brand} />
+            <Glyph name="navigate" size={40} color={colors.brand} />
           </View>
           <Text variant="title" center>
             Share your location
@@ -72,7 +72,7 @@ export default function LocationPermission() {
             <View style={{ gap: Spacing.base }}>
               {POINTS.map((p) => (
                 <View key={p.title} style={styles.point}>
-                  <Ionicons name={p.icon} size={20} color={colors.brand} />
+                  <Glyph name={p.icon} size={20} color={colors.brand} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text variant="bodyStrong">{p.title}</Text>
                     <Text variant="caption" tone="secondary">

@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
@@ -346,7 +346,7 @@ export default function OrderDetail() {
         {/* ---- Delay / Issue Alert ---- */}
         {delivery.is_delayed && (
           <View style={[styles.delayBanner, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}>
-            <Ionicons name="time-outline" size={18} color={colors.danger} />
+            <Glyph name="time-outline" size={18} color={colors.danger} />
             <Text variant="caption" style={{ color: colors.danger, fontWeight: '600' }}>
               {expectedLabel(delivery)} · Priority delivery
             </Text>
@@ -355,7 +355,7 @@ export default function OrderDetail() {
 
         {delivery.code_locked && (
           <View style={[styles.delayBanner, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}>
-            <Ionicons name="lock-closed-outline" size={18} color={colors.danger} />
+            <Glyph name="lock-closed-outline" size={18} color={colors.danger} />
             <Text variant="caption" style={{ color: colors.danger, fontWeight: '600' }}>
               Delivery code locked due to failed attempts. Contact dispatch.
             </Text>
@@ -464,7 +464,7 @@ export default function OrderDetail() {
           <Card>
             <View style={{ gap: Spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
-                <Ionicons name="cube-outline" size={18} color={colors.brand} />
+                <Glyph name="cube-outline" size={18} color={colors.brand} />
                 <Text variant="label" tone="muted">
                   {freezer ? 'PICKUP (DEPOT)' : 'PICKUP (WHOLESALER)'}
                 </Text>
@@ -532,7 +532,7 @@ export default function OrderDetail() {
           <Card>
             <View style={{ gap: Spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
-                <Ionicons name="location-outline" size={18} color={colors.success} />
+                <Glyph name="location-outline" size={18} color={colors.success} />
                 <Text variant="label" tone="muted">
                   {freezer ? 'INSTALL AT (RETAILER)' : 'DROPOFF (RETAILER)'}
                 </Text>
@@ -619,7 +619,7 @@ export default function OrderDetail() {
               ))}
               {freezer ? (
                 <View style={[styles.installNote, { backgroundColor: colors.infoSoft }]}>
-                  <Ionicons name="construct-outline" size={16} color={colors.info} />
+                  <Glyph name="construct-outline" size={16} color={colors.info} />
                   <Text variant="caption" style={{ color: colors.info, flex: 1 }}>
                     Install step: set up the freezer at the retailer, then scan its serial and photograph it
                     installed to complete.
@@ -681,7 +681,7 @@ export default function OrderDetail() {
                 }}
                 hitSlop={10}
               >
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Glyph name="close" size={24} color={colors.textSecondary} />
               </Pressable>
             </View>
 
@@ -848,7 +848,7 @@ export default function OrderDetail() {
             <View style={styles.modalHeader}>
               <Text variant="title">Report a Problem</Text>
               <Pressable onPress={() => setShowProblemModal(false)} hitSlop={10}>
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Glyph name="close" size={24} color={colors.textSecondary} />
               </Pressable>
             </View>
 

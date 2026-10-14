@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Glyph } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -39,7 +39,7 @@ export function GlassBackButton({
       style={[anim, style]}
     >
       <GlassSurface radius={Radius.pill} style={[styles.circle, { width: size, height: size }]}>
-        <Ionicons name="arrow-back" size={size * 0.46} color={c.text} />
+        <Glyph name="arrow-back" size={size * 0.46} color={c.text} />
       </GlassSurface>
     </AnimatedPressable>
   );
