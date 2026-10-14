@@ -36,9 +36,18 @@ export function StatCard({
     warning: { fg: c.warning, bg: c.warningSoft },
   }[tone];
 
+  // CRM stat tile: small label with the icon on the right, then the figure.
   const body = (
     <>
       <View style={styles.head}>
+        <Text
+          variant="caption"
+          tone={featured ? undefined : 'secondary'}
+          style={featured ? { color: 'rgba(255,255,255,0.9)' } : { fontWeight: '500' }}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
         <View
           style={[
             styles.iconWell,
@@ -48,45 +57,34 @@ export function StatCard({
             },
           ]}
         >
-          <Icon size={20} color={featured ? '#FFFFFF' : palette.fg} />
+          <Icon size={18} color={featured ? '#FFFFFF' : palette.fg} />
         </View>
-        {trend && (
-          <View
-            style={[
-              styles.trend,
-              { backgroundColor: featured ? 'rgba(255,255,255,0.2)' : c.successSoft },
-            ]}
-          >
-            <Text
-              variant="caption"
-              style={{ color: featured ? '#FFFFFF' : c.success, fontSize: 11 }}
-            >
-              {trend}
-            </Text>
-          </View>
-        )}
       </View>
 
       <Text variant="title" style={featured ? { color: '#FFFFFF' } : undefined}>
         {value}
       </Text>
 
-      <Text
-        variant="bodyStrong"
-        style={featured ? { color: 'rgba(255,255,255,0.95)' } : undefined}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-
-      {caption && (
-        <Text
-          variant="caption"
-          tone={featured ? undefined : 'muted'}
-          style={featured ? { color: 'rgba(255,255,255,0.75)' } : undefined}
-        >
-          {caption}
-        </Text>
+      {(caption || trend) && (
+        <View style={styles.foot}>
+          {caption ? (
+            <Text
+              variant="caption"
+              tone={featured ? undefined : 'muted'}
+              style={[{ flexShrink: 1 }, featured ? { color: 'rgba(255,255,255,0.75)' } : undefined]}
+              numberOfLines={1}
+            >
+              {caption}
+            </Text>
+          ) : null}
+          {trend ? (
+            <View style={[styles.trend, { backgroundColor: featured ? 'rgba(255,255,255,0.2)' : c.successSoft }]}>
+              <Text variant="caption" style={{ color: featured ? '#FFFFFF' : c.success, fontSize: 11 }}>
+                {trend}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       )}
     </>
   );
@@ -106,11 +104,7 @@ export function StatCard({
 
   return (
     <View
-      style={[
-        styles.card,
-        Elevation.sm,
-        { backgroundColor: c.surface, borderColor: c.border, borderRadius: Radius.lg },
-      ]}
+      style={[styles.card, { backgroundColor: c.surface, borderColor: c.border, borderRadius: Radius.lg }]}
     >
       {body}
     </View>
@@ -120,12 +114,13 @@ export function StatCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     padding: Spacing.base,
     gap: Spacing.xs,
-    minHeight: 132,
+    minHeight: 112,
   },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
   trend: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radius.pill },
-  iconWell: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  iconWell: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
 });

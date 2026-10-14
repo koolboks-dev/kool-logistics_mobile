@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Input, Text, useToast } from '@/components/ui';
 import { useForgotPasswordRequestMutation, useForgotPasswordResetMutation } from '@/store/auth-api';
 import { apiErrorMessage } from '@/store/base-api';
-import { Layout, Motion, Spacing, useTheme } from '@/theme';
+import { Layout, Spacing, useTheme } from '@/theme';
 
 export default function ForgotPassword() {
   const router = useRouter();
@@ -73,7 +73,7 @@ export default function ForgotPassword() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View entering={FadeInDown.duration(Motion.base)}>
+          <Animated.View>
             <Text variant="title">Reset password</Text>
             <Text variant="caption" tone="secondary">
               {step === 'request'
@@ -83,7 +83,7 @@ export default function ForgotPassword() {
           </Animated.View>
 
           {step === 'request' ? (
-            <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)} style={styles.form}>
+            <Animated.View style={styles.form}>
               <Input
                 label="Email"
                 placeholder="Enter your email"
@@ -107,7 +107,7 @@ export default function ForgotPassword() {
               />
             </Animated.View>
           ) : (
-            <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)} style={styles.form}>
+            <Animated.View style={styles.form}>
               <Input
                 label="Reset code"
                 placeholder="Enter reset code"

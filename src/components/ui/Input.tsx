@@ -1,7 +1,7 @@
 import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { FontFamily, FontSize, Layout, Motion, Radius, Spacing, useColors } from '@/theme';
 import { Text } from './Text';
@@ -27,7 +27,7 @@ export function Input({
   rightIcon,
   onRightIconPress,
   password,
-  shape = 'pill',
+  shape = 'rounded',
   ...rest
 }: InputProps) {
   const c = useColors();
@@ -40,7 +40,6 @@ export function Input({
       error ? c.danger : focus.value ? c.brand : c.border,
       { duration: Motion.fast },
     ),
-    borderWidth: withTiming(focus.value ? 1.5 : 1, { duration: Motion.fast }),
   }));
 
   return (
@@ -55,6 +54,7 @@ export function Input({
           {
             backgroundColor: c.surface,
             borderRadius: shape === 'pill' ? Radius.pill : Radius.md,
+            borderWidth: 1,
             height: Layout.controlHeight,
           },
           borderStyle,
@@ -91,7 +91,7 @@ export function Input({
       </Animated.View>
 
       {(error || hint) && (
-        <Animated.View entering={FadeInDown.duration(Motion.fast)}>
+        <Animated.View>
           <Text variant="caption" tone={error ? 'danger' : 'muted'}>
             {error ?? hint}
           </Text>
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.base,
   },
   input: {
     flex: 1,

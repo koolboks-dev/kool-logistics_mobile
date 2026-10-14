@@ -1,8 +1,8 @@
 import { Glyph } from '@/components/icons/Glyph';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
-import { Motion, Spacing, useColors } from '@/theme';
+import { Spacing, useColors } from '@/theme';
 import { Text } from './Text';
 
 export type TimelineStep = {
@@ -28,7 +28,6 @@ export function Timeline({ steps }: { steps: TimelineStep[] }) {
         return (
           <Animated.View
             key={`${s.title}-${i}`}
-            entering={FadeInDown.delay(i * 60).duration(Motion.base)}
             style={styles.row}
           >
             <View style={styles.gutter}>

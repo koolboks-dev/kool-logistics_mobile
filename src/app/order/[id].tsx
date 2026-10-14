@@ -6,7 +6,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,7 +14,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { SerialScanner } from '@/components/SerialScanner';
 import {
@@ -29,6 +28,8 @@ import {
   Input,
   PinInput,
   ScreenScroll,
+  Skeleton,
+  SkeletonOrderCard,
   StatusPill,
   Switch,
   Text,
@@ -57,7 +58,7 @@ import {
   useUploadPodPhotoMutation,
   type RiderStage,
 } from '@/store/rider-api';
-import { Motion, Radius, Spacing, useTheme } from '@/theme';
+import { Radius, Spacing, useTheme } from '@/theme';
 
 /** Shown when the backend rejects the serial (400 serial_mismatch). */
 const SERIAL_MISMATCH_MSG = "This serial doesn't match the freezer allocated to this delivery.";
@@ -122,9 +123,23 @@ export default function OrderDetail() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={colors.brand} />
-      </View>
+      <ScreenScroll title="Delivery" onBack={() => router.back()} contentContainerStyle={{ gap: Spacing.base }}>
+        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+          <Skeleton width={96} height={24} radius={Radius.pill} />
+          <Skeleton width={72} height={24} radius={Radius.pill} />
+        </View>
+        <SkeletonOrderCard />
+        <Card style={{ gap: Spacing.md }}>
+          <Skeleton width="40%" height={14} />
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={{ flexDirection: 'row', gap: Spacing.md, alignItems: 'center' }}>
+              <Skeleton width={14} height={14} radius={Radius.pill} />
+              <Skeleton width={i % 2 ? '55%' : '70%'} height={12} />
+            </View>
+          ))}
+        </Card>
+        <Skeleton height={48} radius={Radius.md} />
+      </ScreenScroll>
     );
   }
 
@@ -135,7 +150,7 @@ export default function OrderDetail() {
         await refetch();
       }}>
         <EmptyState
-          icon={gone ? 'swap-horizontal-outline' : 'cloud-offline-outline'}
+          art={gone ? 'unassigned' : 'offline'}
           title={gone ? 'Not assigned to you' : 'Could not load this delivery'}
           description={
             gone
@@ -363,7 +378,7 @@ export default function OrderDetail() {
         )}
 
         {/* ---- Top Order Card ---- */}
-        <Animated.View entering={FadeInDown.duration(Motion.base)}>
+        <Animated.View>
           <Card>
             <View style={{ gap: Spacing.xs }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -420,7 +435,7 @@ export default function OrderDetail() {
 
         {/* ---- Next Action Callout ---- */}
         {delivery.is_active && stageAction && (
-          <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)}>
+          <Animated.View>
             <Card
               style={{
                 backgroundColor: colors.surface,
@@ -430,7 +445,7 @@ export default function OrderDetail() {
             >
               <View style={{ gap: Spacing.sm }}>
                 <Text variant="label" tone="brand">
-                  NEXT STEP
+                  Next step
                 </Text>
                 <Text variant="subheading">{stageAction.label}</Text>
                 {stageAction.confirm ? (
@@ -452,6 +467,7 @@ export default function OrderDetail() {
                     variant="ghost"
                     size="md"
                     onPress={() => setConfirmStage('picked_up')}
+                    style={{ borderWidth: 1, borderColor: colors.border }}
                   />
                 )}
               </View>
@@ -460,13 +476,13 @@ export default function OrderDetail() {
         )}
 
         {/* ---- Pickup Location ---- */}
-        <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)}>
+        <Animated.View>
           <Card>
             <View style={{ gap: Spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
                 <Glyph name="cube-outline" size={18} color={colors.brand} />
                 <Text variant="label" tone="muted">
-                  {freezer ? 'PICKUP (DEPOT)' : 'PICKUP (WHOLESALER)'}
+                  {freezer ? 'Pickup (depot)' : 'Pickup (wholesaler)'}
                 </Text>
               </View>
 
@@ -528,13 +544,13 @@ export default function OrderDetail() {
         </Animated.View>
 
         {/* ---- Dropoff Location ---- */}
-        <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)}>
+        <Animated.View>
           <Card>
             <View style={{ gap: Spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
                 <Glyph name="location-outline" size={18} color={colors.success} />
                 <Text variant="label" tone="muted">
-                  {freezer ? 'INSTALL AT (RETAILER)' : 'DROPOFF (RETAILER)'}
+                  {freezer ? 'Install at (retailer)' : 'Drop-off (retailer)'}
                 </Text>
               </View>
 
@@ -555,7 +571,7 @@ export default function OrderDetail() {
               <View style={styles.actionRow}>
                 {delivery.customer?.phone || delivery.dropoff.phone ? (
                   <Button
-                    label="Call Retailer"
+                    label="Call retailer"
                     icon="call-outline"
                     variant="outline"
                     size="sm"
@@ -600,11 +616,11 @@ export default function OrderDetail() {
         </Animated.View>
 
         {/* ---- Items List ---- */}
-        <Animated.View entering={FadeInDown.delay(240).duration(Motion.base)}>
+        <Animated.View>
           <Card>
             <View style={{ gap: Spacing.sm }}>
               <Text variant="label" tone="muted">
-                {freezer ? 'FREEZER' : `ITEMS (${delivery.items_count})`}
+                {freezer ? 'Freezer' : `Items (${delivery.items_count})`}
               </Text>
               <Divider />
               {delivery.items?.map((item, idx) => (
@@ -631,11 +647,11 @@ export default function OrderDetail() {
         </Animated.View>
 
         {/* ---- Timeline ---- */}
-        <Animated.View entering={FadeInDown.delay(300).duration(Motion.base)}>
+        <Animated.View>
           <Card>
             <View style={{ gap: Spacing.sm }}>
               <Text variant="label" tone="muted">
-                {freezer ? 'DEPLOYMENT PROGRESS' : 'DELIVERY PROGRESS'}
+                {freezer ? 'Deployment progress' : 'Delivery progress'}
               </Text>
               <Timeline steps={timelineSteps} />
             </View>
@@ -644,7 +660,7 @@ export default function OrderDetail() {
 
         {/* ---- Exceptions & Report Problem ---- */}
         {delivery.is_active && (
-          <Animated.View entering={FadeInDown.delay(360).duration(Motion.base)}>
+          <Animated.View>
             <Button
               label={freezer ? 'Report an issue with this deployment' : 'Report an issue with this delivery'}
               variant="outline"
@@ -696,7 +712,7 @@ export default function OrderDetail() {
               {needsSerial ? (
                 <View style={{ gap: Spacing.xs }}>
                   <Text variant="label" tone="muted">
-                    FREEZER SERIAL NUMBER *
+                    Freezer serial number *
                   </Text>
                   {scanningSerial ? (
                     <SerialScanner
@@ -743,7 +759,7 @@ export default function OrderDetail() {
               {/* Photo upload / capture */}
               <View style={{ gap: Spacing.xs }}>
                 <Text variant="label" tone="muted">
-                  {freezer ? 'INSTALLED FREEZER PHOTO *' : 'PROOF OF DELIVERY PHOTO *'}
+                  {freezer ? 'Installed freezer photo *' : 'Proof of delivery photo *'}
                 </Text>
                 {podPhotoUri ? (
                   <View style={{ alignItems: 'center', gap: Spacing.xs }}>
@@ -762,7 +778,7 @@ export default function OrderDetail() {
                 ) : (
                   <View style={styles.photoButtons}>
                     <Button
-                      label="Take Photo"
+                      label="Take photo"
                       icon="camera-outline"
                       style={{ flex: 1 }}
                       onPress={() => pickPodImage(true)}
@@ -787,7 +803,7 @@ export default function OrderDetail() {
               {/* 4-digit code the retailer received */}
               <View style={{ gap: Spacing.xs }}>
                 <Text variant="label" tone="muted">
-                  RETAILER’S 4-DIGIT CODE *
+                  Retailer’s 4-digit code *
                 </Text>
                 <PinInput
                   length={4}
@@ -854,7 +870,7 @@ export default function OrderDetail() {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md }}>
               <Text variant="label" tone="muted">
-                CATEGORY
+                Category
               </Text>
               <View style={styles.categoryGrid}>
                 {PROBLEM_CATEGORIES.map((cat) => (

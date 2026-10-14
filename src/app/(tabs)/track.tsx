@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import {
   Button,
@@ -22,7 +22,7 @@ import { dropoffAddress, isFreezerDelivery, stageTimeline } from '@/lib/delivery
 import { tokenFromScan } from '@/lib/qr';
 import { apiErrorCode, apiErrorMessage } from '@/store/base-api';
 import { useScanDeliveryMutation, type ScanResult } from '@/store/rider-api';
-import { Motion, Spacing } from '@/theme';
+import { Spacing } from '@/theme';
 
 export default function Track() {
   const router = useRouter();
@@ -67,7 +67,7 @@ export default function Track() {
         if (query.trim()) await track();
       }}
     >
-      <Animated.View entering={FadeInDown.duration(Motion.base)} style={{ gap: Spacing.base }}>
+      <Animated.View style={{ gap: Spacing.base }}>
         <Text variant="body" tone="secondary">
           Enter an order number or scan a waybill to verify tracking details.
         </Text>
@@ -97,7 +97,7 @@ export default function Track() {
       </Animated.View>
 
       {result ? (
-        <Animated.View entering={FadeInDown.delay(100).duration(Motion.base)} style={{ gap: Spacing.md }}>
+        <Animated.View style={{ gap: Spacing.md }}>
           <Card>
             <View style={{ gap: Spacing.md }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -143,7 +143,7 @@ export default function Track() {
                 </Text>
               ) : (
                 <Button
-                  label="Open Delivery Details"
+                  label="Open delivery details"
                   icon="arrow-forward-outline"
                   onPress={() => router.push(`/order/${result.delivery_id}`)}
                   style={{ marginTop: Spacing.xs }}
@@ -155,7 +155,7 @@ export default function Track() {
           <Card>
             <View style={{ gap: Spacing.sm }}>
               <Text variant="label" tone="muted">
-                {isFreezerDelivery(result) ? 'DEPLOYMENT TIMELINE' : 'DELIVERY TIMELINE'}
+                {isFreezerDelivery(result) ? 'Deployment timeline' : 'Delivery timeline'}
               </Text>
               <Timeline steps={stageTimeline(result)} />
             </View>

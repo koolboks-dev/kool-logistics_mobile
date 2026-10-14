@@ -4,6 +4,11 @@ The single reference for how this app looks and behaves. Read this before adding
 a screen or component. If something here is wrong, fix the doc in the same
 change as the code.
 
+**It follows the Koolboks Sales CRM** (`Koolboks-sales-CRM/koolboks_sales_crm_web/DESIGN.md`)
+and the two web consoles: clean white cards on a light grey page, charcoal text
+and primary buttons, Work Sans, 12px corners, thin borders, soft shadows, and
+Koolboks orange as the accent — not the main colour.
+
 ---
 
 ## 1. Non-negotiables
@@ -28,9 +33,13 @@ Colors sampled directly from the logo artwork.
 
 | Token | Hex | Use |
 |---|---|---|
-| `Palette.orange` | `#F57D1C` | Primary actions, active states, brand accents |
-| `Palette.orangeDark` | `#D96A0F` | Pressed state of primary |
-| `Palette.charcoal` | `#333333` | The "LOGISTICS" wordmark dark |
+| `Palette.charcoal` | `#050711` | Text and primary (filled) buttons — the workhorse |
+| `Palette.orange` | `#F57E16` | The accent: active tab, focus, links, icons, at most one orange button per screen |
+| `Palette.orangeDark` | `#DC6C0B` | Pressed orange |
+| `Palette.orangeText` | `#B85A0A` | Orange *text* on white (pure orange is only 2.7:1, so it's for fills and icons) |
+| `Palette.orangeSoft` | `#FEF1E6` | Tinted icon wells, selected states |
+
+Keep orange to roughly 10% of a screen. If a screen looks orange, there is too much.
 
 **Logo variants** — `assets/images/logo/`
 
@@ -61,7 +70,9 @@ Never reach for `Palette` in a component; use the semantic theme from
 
 | Role | Meaning |
 |---|---|
-| `background` | Screen base |
+| `background` | Screen base — `#F8F9FA` light grey, so white cards stand out |
+| `primary` / `onPrimary` | Charcoal fill and its text — the primary button |
+| `brandText` | Orange text (links, "View all") |
 | `surface` | Cards, sheets, inputs |
 | `surfaceAlt` | Filled cards, icon wells, pressed rows |
 | `surfaceSunken` | Tracks behind controls (switch, segmented) |
@@ -83,13 +94,13 @@ Never reach for `Palette` in a component; use the semantic theme from
 
 ---
 
-## 4. Typography — Poppins
+## 4. Typography — Work Sans
 
-Loaded in `app/_layout.tsx`; the splash holds until fonts resolve so no frame
-renders in the system font.
+The CRM's and the web consoles' face. Loaded in `app/_layout.tsx`; the splash
+holds until fonts resolve so no frame renders in the system font.
 
-**Import per-weight** (`@expo-google-fonts/poppins/400Regular`), never from the
-package barrel — the barrel pulls all 18 weights (~3 MB).
+**Import per-weight** (`@expo-google-fonts/work-sans/400Regular`), never from the
+package barrel — the barrel pulls every weight.
 
 Four weights only: 400 Regular, 500 Medium, 600 SemiBold, 700 Bold.
 
@@ -102,7 +113,7 @@ Four weights only: 400 Regular, 500 Medium, 600 SemiBold, 700 Bold.
 | `body` | 14 / 21 | Regular | Default |
 | `bodyStrong` | 14 / 21 | Medium | Emphasis, values in detail rows |
 | `caption` | 12 / 17 | Regular | Supporting text, timestamps |
-| `label` | 11 / 15 | SemiBold, +0.8 tracking | ALL-CAPS section eyebrows |
+| `label` | 13 / 18 | SemiBold | Small section titles, sentence case (no ALL CAPS) |
 
 Always use `<Text variant=… tone=…>`, never RN `Text` directly — it defaults to
 the system font and breaks parity.
@@ -113,13 +124,22 @@ the system font and breaks parity.
 
 4pt scale: `xxs 2 · xs 4 · sm 8 · md 12 · base 16 · lg 20 · xl 24 · xxl 32 · xxxl 48`
 
-Radius: `xs 6 · sm 10 · md 14 · lg 18 · xl 24 · xxl 32 · pill 999`
+Radius: `xs 6 · sm 8 · md 12 · lg 12 · xl 16 · xxl 20 · pill 999` — **12px (`md`)
+for buttons, inputs and cards**, like the CRM. `pill` only for chips, status pills,
+avatars and toggles.
 
 - Screen horizontal padding: `Layout.screenPadding` (20)
 - Content caps at `Layout.maxContentWidth` (620) and centers — tablets/web
-- Controls: 52 tall (`controlHeight`), 40 for compact (`controlHeightSm`)
-- **Buttons and text inputs are pill-shaped** (`Radius.pill`). Cards use `lg`,
-  sheets `xxl`. `Input` takes `shape="rounded"` only for dense contexts.
+- Section titles are `subheading` in sentence case ("Active deliveries"), with
+  a muted count where useful; no ALL-CAPS eyebrows
+- Controls: 48 tall (`controlHeight`, the CRM input height and a comfortable
+  touch target), 40 for compact (`controlHeightSm`)
+- **Buttons and inputs have 12px corners**, not pills. Inputs: white, 1px
+  `border`, orange border on focus. Cards: white, 1px `border`, 12px, no or soft
+  shadow. Sheets use `xxl`.
+- **Buttons:** `primary` = charcoal; `brand` = orange, for the one key action on
+  a screen; `outline` = charcoal border; `secondary` = light grey fill.
+  Labels are verbs in sentence case.
 - Input labels sit above the field as `bodyStrong` in the primary text color —
   not muted captions.
 - Bottom padding on any scroll view sitting under the tab bar: **160**
@@ -246,8 +266,7 @@ export from `index.ts`, and add a live example to the gallery.
 - Currency: `₦` with thousands separators — `₦18,500`
 - Order references: `#KL-84213`
 - Timestamps in lists: `HH:mm`; absolute dates elsewhere
-- Sentence case for labels and buttons ("Mark as delivered"), ALL CAPS only for
-  `label` eyebrows
+- Sentence case everywhere: labels, buttons, section titles ("Mark as delivered")
 - Buttons are verbs. "Confirm delivery", not "OK"
 
 ---

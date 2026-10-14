@@ -2,7 +2,7 @@ import { Glyph } from '@/components/icons/Glyph';
 import * as Haptics from 'expo-haptics';
 import { useState, type ReactNode } from 'react';
 import { LayoutAnimation, Platform, Pressable, StyleSheet, UIManager, View } from 'react-native';
-import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Motion, Radius, Spacing, useColors } from '@/theme';
 import { Text } from './Text';
@@ -50,7 +50,7 @@ export function Accordion({
       </Pressable>
 
       {open && (
-        <Animated.View entering={FadeIn.duration(Motion.base)} style={styles.body}>
+        <Animated.View style={styles.body}>
           <View style={[styles.hairline, { backgroundColor: c.border }]} />
           {children}
         </Animated.View>

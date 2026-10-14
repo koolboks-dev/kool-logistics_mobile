@@ -6,7 +6,11 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } fr
 import { FontFamily, FontSize, Layout, Motion, Radius, Spacing, useColors } from '@/theme';
 import { Text } from './Text';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+/**
+ * CRM buttons (DESIGN.md §7): `primary` is charcoal, `brand` is Koolboks orange
+ * for the one key action on a screen, `outline` is a charcoal border.
+ */
+export type ButtonVariant = 'primary' | 'brand' | 'secondary' | 'outline' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export type ButtonProps = {
@@ -44,10 +48,11 @@ export function Button({
   const inactive = disabled || loading;
 
   const palette: Record<ButtonVariant, { bg: string; bgPressed: string; fg: string; border?: string }> = {
-    primary: { bg: c.brand, bgPressed: c.brandPressed, fg: c.onBrand },
-    secondary: { bg: c.brandSoft, bgPressed: c.brandSoft, fg: c.brand },
-    outline: { bg: 'transparent', bgPressed: c.surfaceAlt, fg: c.text, border: c.borderStrong },
-    ghost: { bg: 'transparent', bgPressed: c.surfaceAlt, fg: c.brand },
+    primary: { bg: c.primary, bgPressed: c.primaryPressed, fg: c.onPrimary },
+    brand: { bg: c.brand, bgPressed: c.brandPressed, fg: c.onBrand },
+    secondary: { bg: c.surfaceSunken, bgPressed: c.border, fg: c.text },
+    outline: { bg: c.surface, bgPressed: c.surfaceAlt, fg: c.text, border: c.text },
+    ghost: { bg: 'transparent', bgPressed: c.surfaceAlt, fg: c.brandText },
     danger: { bg: c.danger, bgPressed: c.danger, fg: '#FFFFFF' },
   };
   const p = palette[variant];
@@ -57,8 +62,8 @@ export function Button({
     md: Layout.controlHeightSm,
     lg: Layout.controlHeight,
   };
-  const fontSizes: Record<ButtonSize, number> = { sm: FontSize.sm, md: FontSize.base, lg: FontSize.md };
-  const iconSizes: Record<ButtonSize, number> = { sm: 15, md: 17, lg: 19 };
+  const fontSizes: Record<ButtonSize, number> = { sm: FontSize.sm, md: 13, lg: FontSize.base };
+  const iconSizes: Record<ButtonSize, number> = { sm: 15, md: 16, lg: 18 };
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -90,10 +95,10 @@ export function Button({
         styles.base,
         {
           height: heights[size],
-          borderRadius: Radius.pill,
+          borderRadius: Radius.md,
           borderWidth: p.border ? 1 : 0,
           borderColor: p.border,
-          paddingHorizontal: size === 'sm' ? Spacing.base : Spacing.xl,
+          paddingHorizontal: size === 'sm' ? Spacing.md : Spacing.base,
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
         },
         animStyle,

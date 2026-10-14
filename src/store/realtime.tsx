@@ -176,7 +176,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
               : kind === 'delivery_assigned'
                 ? 'bicycle-outline'
                 : 'notifications-outline',
-          tone: bad ? 'danger' : 'brand',
+          tone: bad ? 'danger' : n.metadata?.delivery_type === 'freezer' ? 'info' : 'brand',
+          actionLabel: deliveryId && !bad ? 'View delivery' : 'Open',
           // Unassigned/cancelled deliveries are no longer viewable by this rider.
           link: deliveryId && !bad ? `/order/${deliveryId}` : '/alerts',
           notificationId: n.id,
@@ -220,11 +221,11 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       const freezer = p.delivery_type === 'freezer';
       const ref = freezer ? 'a freezer deployment' : p.order_number ? `order #${p.order_number}` : 'a delivery';
       if (p.status === 'cancelled') {
-        alert = { id: `c-${id}`, title: freezer ? 'Freezer deployment cancelled' : 'Delivery cancelled', message: `Dispatch cancelled ${ref}.`, tone: 'danger', icon: 'close-circle-outline', link: '/(tabs)/orders' };
+        alert = { id: `c-${id}`, title: freezer ? 'Freezer deployment cancelled' : 'Delivery cancelled', message: `Dispatch cancelled ${ref}.`, tone: 'danger', icon: 'close-circle-outline', actionLabel: 'See deliveries', link: '/(tabs)/orders' };
       } else if (p.kind === 'assignment' && mine && p.status === 'assigned') {
         alert = freezer
-          ? { id: `a-${id}`, title: 'Freezer deployment assigned', message: 'Collect the freezer from the depot and install it at the retailer.', tone: 'brand', icon: 'snow-outline', link: `/order/${id}` }
-          : { id: `a-${id}`, title: 'New delivery assigned', message: `Pick up ${ref}.`, tone: 'brand', icon: 'bicycle-outline', link: `/order/${id}` };
+          ? { id: `a-${id}`, title: 'Freezer deployment assigned', message: 'Collect the freezer from the depot and install it at the retailer.', tone: 'info', icon: 'snow-outline', actionLabel: 'View delivery', link: `/order/${id}` }
+          : { id: `a-${id}`, title: 'New delivery assigned', message: `Pick up ${ref}.`, tone: 'brand', icon: 'bicycle-outline', actionLabel: 'View delivery', link: `/order/${id}` };
       } else if (p.kind === 'assignment' && !mine) {
         alert = { id: `u-${id}`, title: 'Delivery reassigned', message: `${ref[0].toUpperCase()}${ref.slice(1)} is no longer assigned to you.`, tone: 'danger', icon: 'swap-horizontal-outline', link: '/(tabs)/orders' };
       }
@@ -276,7 +277,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   return (
     <RealtimeContext.Provider value={{ connected: enabled && connected }}>
       {children}
-      <InAppBanner item={banner} onDismiss={dismissBanner} onPress={onBannerPress} />
+      <InAppBanner item={banner} onDismiss={dismissBanner} onPress={onBannerPress} durationMs={BANNER_MS} />
     </RealtimeContext.Provider>
   );
 }

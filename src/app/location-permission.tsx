@@ -2,12 +2,12 @@ import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Card, GlassBackButton, Text } from '@/components/ui';
 import { useLocationSharing } from '@/store/location';
-import { Layout, Motion, Radius, Spacing, useTheme } from '@/theme';
+import { Layout, Radius, Spacing, useTheme } from '@/theme';
 
 const POINTS: { icon: GlyphName; title: string; body: string }[] = [
   {
@@ -54,7 +54,7 @@ export default function LocationPermission() {
       <GlassBackButton onPress={() => router.back()} />
 
       <View style={styles.body}>
-        <Animated.View entering={FadeInDown.duration(Motion.base)} style={styles.hero}>
+        <Animated.View style={styles.hero}>
           <View style={[styles.mark, { backgroundColor: colors.brandSoft, borderRadius: Radius.xl }]}>
             <Glyph name="navigate" size={40} color={colors.brand} />
           </View>
@@ -67,7 +67,7 @@ export default function LocationPermission() {
           </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(80).duration(Motion.base)}>
+        <Animated.View>
           <Card>
             <View style={{ gap: Spacing.base }}>
               {POINTS.map((p) => (

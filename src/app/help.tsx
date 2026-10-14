@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Linking, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import {
   Accordion,
@@ -12,7 +12,7 @@ import {
   Text,
 } from '@/components/ui';
 import { Company, Faqs, Stats } from '@/data/site';
-import { Motion, Radius, Spacing } from '@/theme';
+import { Radius, Spacing } from '@/theme';
 
 export default function Help() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export default function Help() {
 
   return (
     <ScreenScroll title="Help centre" onBack={() => router.back()} contentContainerStyle={styles.scroll}>
-      <Animated.View entering={FadeInDown.duration(Motion.base)}>
+      <Animated.View>
         <View style={[styles.hero, { borderRadius: Radius.lg }]}>
           <Image
             source={require('@/assets/images/site/hero-2.jpg')}
@@ -42,9 +42,9 @@ export default function Help() {
       </Animated.View>
 
       {/* Contact */}
-      <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)} style={{ gap: Spacing.md }}>
+      <Animated.View style={{ gap: Spacing.md }}>
         <Text variant="label" tone="muted">
-          GET IN TOUCH
+          Get in touch
         </Text>
         <Card padded={false}>
           <ListRow
@@ -75,7 +75,7 @@ export default function Help() {
       </Animated.View>
 
       {/* Track shortcut */}
-      <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)}>
+      <Animated.View>
         <Card padded={false}>
           <ListRow
             icon="navigate-outline"
@@ -87,9 +87,9 @@ export default function Help() {
       </Animated.View>
 
       {/* FAQs */}
-      <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={{ gap: Spacing.md }}>
+      <Animated.View style={{ gap: Spacing.md }}>
         <Text variant="label" tone="muted">
-          FREQUENTLY ASKED
+          Frequently asked
         </Text>
         {Faqs.map((f, i) => (
           <Accordion key={f.q} title={f.q} defaultOpen={i === 0}>
@@ -101,7 +101,7 @@ export default function Help() {
       </Animated.View>
 
       {/* Proof */}
-      <Animated.View entering={FadeInDown.delay(240).duration(Motion.base)}>
+      <Animated.View>
         <Card variant="filled">
           <View style={styles.statRow}>
             {Stats.map((s) => (

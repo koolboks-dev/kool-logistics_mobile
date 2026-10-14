@@ -1,13 +1,13 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChevronMarkIcon } from '@/components/icons';
 import { Button, Card, Text } from '@/components/ui';
 import { Stats, ValueProps } from '@/data/site';
-import { Layout, LogoRatio, Motion, Radius, Spacing, useTheme } from '@/theme';
+import { Layout, LogoRatio, Radius, Spacing, useTheme } from '@/theme';
 
 export default function Welcome() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export default function Welcome() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero */}
-        <Animated.View entering={FadeIn.duration(Motion.slow)} style={styles.hero}>
+        <Animated.View style={styles.hero}>
           <Image
             source={require('@/assets/images/site/hero-1.jpg')}
             style={StyleSheet.absoluteFill}
@@ -49,7 +49,7 @@ export default function Welcome() {
 
         <View style={styles.body}>
           {/* Proof */}
-          <Animated.View entering={FadeInDown.delay(100).duration(Motion.slow)}>
+          <Animated.View>
             <Card variant="filled">
               <View style={styles.statRow}>
                 {Stats.map((s) => (
@@ -69,10 +69,10 @@ export default function Welcome() {
           {/* Why */}
           <View style={{ gap: Spacing.md }}>
             <Text variant="label" tone="muted">
-              WHY BUSINESSES TRUST US
+              Why businesses trust us
             </Text>
             {ValueProps.slice(0, 3).map((v, i) => (
-              <Animated.View key={v.title} entering={FadeInDown.delay(180 + i * 90).duration(Motion.slow)}>
+              <Animated.View key={v.title}>
                 <Card variant="outlined">
                   <View style={styles.row}>
                     <View style={[styles.mark, { backgroundColor: colors.brandSoft, borderRadius: Radius.sm }]}>
@@ -93,7 +93,6 @@ export default function Welcome() {
       </ScrollView>
 
       <Animated.View
-        entering={FadeInUp.delay(320).duration(Motion.slow)}
         style={[
           styles.footer,
           { paddingBottom: insets.bottom + Spacing.lg, backgroundColor: colors.background, borderTopColor: colors.border },

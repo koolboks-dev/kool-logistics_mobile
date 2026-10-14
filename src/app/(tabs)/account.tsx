@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import {
   Avatar,
@@ -18,7 +18,7 @@ import { Company } from '@/data/site';
 import { useRiderMeQuery } from '@/store/rider-api';
 import { useLocationSharing } from '@/store/location';
 import { useSession } from '@/store/session';
-import { Motion, Spacing, useTheme, type ThemePreference } from '@/theme';
+import { Spacing, useTheme, type ThemePreference } from '@/theme';
 
 export default function Account() {
   const router = useRouter();
@@ -45,7 +45,7 @@ export default function Account() {
         }}
       >
         {/* ---- Profile Card ---- */}
-        <Animated.View entering={FadeInDown.duration(Motion.base)}>
+        <Animated.View>
           <Card padded={false} style={styles.profileCard}>
             <View style={styles.banner}>
               <Image
@@ -73,9 +73,9 @@ export default function Account() {
         </Animated.View>
 
         {/* ---- Vehicle & Territory ---- */}
-        <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)} style={{ gap: Spacing.md }}>
+        <Animated.View style={{ gap: Spacing.md }}>
           <Text variant="label" tone="muted">
-            DISPATCH ASSIGNMENT
+            Dispatch assignment
           </Text>
           <Card padded={false}>
             <ListRow
@@ -101,9 +101,9 @@ export default function Account() {
         </Animated.View>
 
         {/* ---- Security ---- */}
-        <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)} style={{ gap: Spacing.md }}>
+        <Animated.View style={{ gap: Spacing.md }}>
           <Text variant="label" tone="muted">
-            SECURITY
+            Security
           </Text>
           <Card padded={false}>
             <ListRow
@@ -131,9 +131,9 @@ export default function Account() {
         </Animated.View>
 
         {/* ---- Appearance ---- */}
-        <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={{ gap: Spacing.md }}>
+        <Animated.View style={{ gap: Spacing.md }}>
           <Text variant="label" tone="muted">
-            APPEARANCE
+            Appearance
           </Text>
           <Card>
             <View style={{ gap: Spacing.md }}>
@@ -156,9 +156,9 @@ export default function Account() {
         </Animated.View>
 
         {/* ---- Support ---- */}
-        <Animated.View entering={FadeInDown.delay(240).duration(Motion.base)} style={{ gap: Spacing.md }}>
+        <Animated.View style={{ gap: Spacing.md }}>
           <Text variant="label" tone="muted">
-            SUPPORT
+            Support
           </Text>
           <Card padded={false}>
             <ListRow
@@ -178,7 +178,7 @@ export default function Account() {
         </Animated.View>
 
         {/* ---- Sign Out ---- */}
-        <Animated.View entering={FadeInDown.delay(300).duration(Motion.base)}>
+        <Animated.View>
           <Card padded={false}>
             <ListRow
               icon="log-out-outline"

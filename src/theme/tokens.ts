@@ -5,35 +5,42 @@
  * font *loading* (the family names themselves are identical everywhere).
  */
 
+/**
+ * Colours follow the Koolboks Sales CRM (its DESIGN.md §1–3): white surfaces on
+ * a #F8F9FA page, #E9ECEF hairlines, charcoal text and primary buttons, and
+ * Koolboks orange as the accent — links, active states, one key action.
+ */
 export const Palette = {
-  orange: '#F57D1C',
-  orangeDark: '#D96A0F',
+  orange: '#F57E16',
+  orangeDark: '#DC6C0B',
   orangeLight: '#FF9640',
-  orangeSoft: '#FEF1E4',
-  charcoal: '#333333',
+  orangeSoft: '#FEF1E6',
+  /** Orange for text on white (4.7:1); pure orange is for fills and icons. */
+  orangeText: '#B85A0A',
+  charcoal: '#050711',
 
   white: '#FFFFFF',
   black: '#0B0B0C',
 
-  grey50: '#F7F8F9',
-  grey100: '#F0F1F3',
-  grey200: '#E3E5E9',
-  grey300: '#CDD1D8',
-  grey400: '#A0A6B1',
-  grey500: '#6F7581',
-  grey600: '#4C525C',
-  grey700: '#33383F',
-  grey800: '#1F2227',
-  grey900: '#131519',
+  grey50: '#F8F9FA',
+  grey100: '#F1F3F5',
+  grey200: '#E9ECEF',
+  grey300: '#DEE2E6',
+  grey400: '#ADB5BD',
+  grey500: '#6C757D',
+  grey600: '#495057',
+  grey700: '#343A40',
+  grey800: '#1E293B',
+  grey900: '#0F172A',
 
-  green: '#12A150',
-  greenSoft: '#E6F7ED',
-  red: '#E5484D',
-  redSoft: '#FDECEC',
-  blue: '#0B7FE0',
-  blueSoft: '#E6F2FD',
-  amber: '#F5A524',
-  amberSoft: '#FFF6E5',
+  green: '#6C8B7D',
+  greenSoft: '#EEF3F0',
+  red: '#DC3545',
+  redSoft: '#FCEBED',
+  blue: '#3B6FB6',
+  blueSoft: '#EAF1FA',
+  amber: '#D18707',
+  amberSoft: '#FFF6E4',
 } as const;
 
 /**
@@ -45,7 +52,14 @@ export const LogoRatio = 2.8241;
 export type ThemeMode = 'light' | 'dark';
 
 export type ThemeColors = {
+  /** Charcoal: primary (filled) buttons and the strongest text. */
+  primary: string;
+  primaryPressed: string;
+  onPrimary: string;
+
   brand: string;
+  /** Orange text on surfaces (links, small labels). */
+  brandText: string;
   brandPressed: string;
   brandSoft: string;
   onBrand: string;
@@ -84,19 +98,24 @@ export type ThemeColors = {
 
 export const Themes: Record<ThemeMode, ThemeColors> = {
   light: {
+    primary: Palette.charcoal,
+    primaryPressed: Palette.grey700,
+    onPrimary: Palette.white,
+
     brand: Palette.orange,
+    brandText: Palette.orangeText,
     brandPressed: Palette.orangeDark,
     brandSoft: Palette.orangeSoft,
     onBrand: Palette.white,
 
-    background: Palette.white,
+    background: Palette.grey50,
     surface: Palette.white,
     surfaceAlt: Palette.grey50,
     surfaceSunken: Palette.grey100,
 
-    text: Palette.grey900,
-    textSecondary: Palette.grey500,
-    textMuted: Palette.grey400,
+    text: Palette.charcoal,
+    textSecondary: Palette.grey600,
+    textMuted: Palette.grey500,
     onDark: Palette.white,
 
     border: Palette.grey200,
@@ -111,7 +130,7 @@ export const Themes: Record<ThemeMode, ThemeColors> = {
     warning: Palette.amber,
     warningSoft: Palette.amberSoft,
 
-    overlay: 'rgba(11,11,12,0.45)',
+    overlay: 'rgba(5,7,17,0.45)',
     glassTint: 'rgba(255,255,255,0.72)',
     skeleton: Palette.grey200,
 
@@ -119,28 +138,33 @@ export const Themes: Record<ThemeMode, ThemeColors> = {
     controlThumb: '#FFFFFF',
   },
   dark: {
+    primary: '#F1F5F9',
+    primaryPressed: '#CBD5E1',
+    onPrimary: Palette.charcoal,
+
     brand: Palette.orange,
+    brandText: Palette.orange,
     brandPressed: Palette.orangeLight,
     brandSoft: 'rgba(253,121,1,0.16)',
     onBrand: Palette.white,
 
-    background: Palette.black,
+    background: '#0B1120',
     surface: Palette.grey900,
     surfaceAlt: Palette.grey800,
-    surfaceSunken: '#0F1114',
+    surfaceSunken: '#0B1120',
 
     text: Palette.white,
     textSecondary: Palette.grey400,
     textMuted: Palette.grey500,
     onDark: Palette.white,
 
-    border: '#262A31',
-    borderStrong: '#343A43',
+    border: '#334155',
+    borderStrong: '#475569',
 
-    success: '#3ECF7C',
-    successSoft: 'rgba(18,161,80,0.18)',
-    danger: '#FF6369',
-    dangerSoft: 'rgba(229,72,77,0.18)',
+    success: '#8FB3A3',
+    successSoft: 'rgba(108,139,125,0.2)',
+    danger: '#F0707D',
+    dangerSoft: 'rgba(220,53,69,0.18)',
     info: '#4CA6F5',
     infoSoft: 'rgba(11,127,224,0.18)',
     warning: '#FFC155',
@@ -152,8 +176,8 @@ export const Themes: Record<ThemeMode, ThemeColors> = {
 
     // Deliberately lifted off `surface` (#131519): the previous
     // surfaceSunken/surface pairing was 4 points apart and read as invisible.
-    controlTrack: '#262A31',
-    controlThumb: '#3A414B',
+    controlTrack: '#334155',
+    controlThumb: '#64748B',
   },
 };
 
@@ -170,22 +194,23 @@ export const Spacing = {
   xxxl: 48,
 } as const;
 
+/** CRM radius: 12px for buttons, inputs and cards (`md`); pill only for chips, avatars and toggles. */
 export const Radius = {
   xs: 6,
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
-  xxl: 32,
+  sm: 8,
+  md: 12,
+  lg: 12,
+  xl: 16,
+  xxl: 20,
   pill: 999,
 } as const;
 
 /** Font family names registered by loadAppFonts(). Identical on all platforms. */
 export const FontFamily = {
-  regular: 'Poppins_400Regular',
-  medium: 'Poppins_500Medium',
-  semibold: 'Poppins_600SemiBold',
-  bold: 'Poppins_700Bold',
+  regular: 'WorkSans_400Regular',
+  medium: 'WorkSans_500Medium',
+  semibold: 'WorkSans_600SemiBold',
+  bold: 'WorkSans_700Bold',
 } as const;
 
 export const FontSize = {
@@ -204,21 +229,36 @@ export const FontSize = {
  * Cross-platform elevation. iOS reads shadow*, Android reads elevation —
  * both are always supplied so a surface never looks flat on one platform.
  */
+/**
+ * Slate "liquid glass" — the dashboard duty card and the live notification
+ * banner. Softer than charcoal; the same in light and dark mode.
+ */
+export const SlateGlass = {
+  gradient: ['#3B4658', '#2C3545', '#232B39'] as const,
+  text: '#FFFFFF',
+  muted: 'rgba(255,255,255,0.72)',
+  line: 'rgba(255,255,255,0.14)',
+  pane: 'rgba(255,255,255,0.09)',
+  edge: 'rgba(255,255,255,0.22)',
+  sheen: ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)'] as const,
+};
+
 export const Elevation = {
   none: { shadowOpacity: 0, elevation: 0 },
+  // CRM: soft only, e.g. 0 2px 8px rgba(0,0,0,.06). No heavy drop shadows.
   sm: {
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowColor: '#050711',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    elevation: 1,
   },
   md: {
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    shadowColor: '#050711',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   lg: {
     shadowColor: '#000',
@@ -241,6 +281,7 @@ export const Motion = {
 export const Layout = {
   screenPadding: Spacing.lg,
   maxContentWidth: 620,
-  controlHeight: 56,
+  /** CRM input height; also the standard button (comfortable touch target). */
+  controlHeight: 48,
   controlHeightSm: 40,
 } as const;

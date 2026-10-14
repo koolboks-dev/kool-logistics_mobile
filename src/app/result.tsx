@@ -1,10 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Card, DetailRow, StatusOrb, StatusPill, Text } from '@/components/ui';
-import { Layout, Motion, Spacing, useTheme } from '@/theme';
+import { Layout, Spacing, useTheme } from '@/theme';
 
 type Params = {
   /** delivered | scan | scan_rejected */
@@ -59,7 +59,7 @@ export default function Result() {
       <View style={styles.center}>
         <StatusOrb tone={rejected || foreign ? 'danger' : 'success'} size={116} />
 
-        <Animated.View entering={FadeInDown.delay(140).duration(Motion.slow)} style={styles.copy}>
+        <Animated.View style={styles.copy}>
           <Text variant="title" center>
             {title}
           </Text>
@@ -69,7 +69,7 @@ export default function Result() {
         </Animated.View>
 
         {scan && (
-          <Animated.View entering={FadeInDown.delay(200).duration(Motion.slow)} style={{ alignSelf: 'stretch' }}>
+          <Animated.View style={{ alignSelf: 'stretch' }}>
             <Card>
               <View style={styles.cardHead}>
                 <Text variant="bodyStrong" style={{ flex: 1 }}>
@@ -85,7 +85,6 @@ export default function Result() {
       </View>
 
       <Animated.View
-        entering={FadeInDown.delay(260).duration(Motion.slow)}
         style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}
       >
         {scan && !foreign && p.id ? (

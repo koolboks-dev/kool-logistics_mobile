@@ -1,6 +1,7 @@
 import { Redirect } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 
+import { ChevronMarkIcon } from '@/components/icons';
 import { Button, EmptyState } from '@/components/ui';
 import { useSession } from '@/store/session';
 import { Layout, useColors } from '@/theme';
@@ -12,7 +13,7 @@ export default function Entry() {
   if (status === 'booting') {
     return (
       <View style={{ flex: 1, backgroundColor: c.background, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={c.brand} />
+        <ChevronMarkIcon size={56} color={c.brand} accessibilityLabel="Loading" />
       </View>
     );
   }
@@ -22,7 +23,7 @@ export default function Entry() {
     return (
       <View style={{ flex: 1, backgroundColor: c.background, justifyContent: 'center', padding: Layout.screenPadding }}>
         <EmptyState
-          icon="cloud-offline-outline"
+          art="offline"
           title="Can't reach Koolboks"
           description="Check your internet connection and try again. You are still signed in."
           actionLabel="Try again"

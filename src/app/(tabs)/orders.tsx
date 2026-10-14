@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import {
   EmptyState,
@@ -9,6 +9,7 @@ import {
   Pagination,
   SearchBar,
   SegmentedControl,
+  SkeletonList,
   ScreenScroll,
   Text,
   useToast,
@@ -32,11 +33,13 @@ export default function Orders() {
   const {
     data: activeList = [],
     refetch: refetchActive,
+    isLoading: loadingActive,
   } = useAssignedDeliveriesQuery({ active: true });
 
   const {
     data: closedList = [],
     refetch: refetchClosed,
+    isLoading: loadingClosed,
   } = useAssignedDeliveriesQuery({ active: false });
 
   const [segment, setSegment] = useState('active');
@@ -105,10 +108,20 @@ export default function Orders() {
         </Text>
       </View>
 
-      {visible.length === 0 ? (
+      {(segment === 'active' ? loadingActive : segment === 'closed' ? loadingClosed : loadingActive || loadingClosed) ? (
+        <SkeletonList count={4} />
+      ) : visible.length === 0 ? (
         <EmptyState
-          icon="cube-outline"
-          title={search ? 'No matching deliveries' : 'No deliveries in this tab'}
+          art={search ? 'search' : segment === 'active' ? 'deliveries' : segment === 'closed' ? 'completed' : 'history'}
+          title={
+            search
+              ? 'No matching deliveries'
+              : segment === 'active'
+                ? 'No active deliveries'
+                : segment === 'closed'
+                  ? 'No completed deliveries yet'
+                  : 'No delivery history yet'
+          }
           description={
             search
               ? `No result for "${search}". Check the reference or customer name.`
@@ -122,7 +135,6 @@ export default function Orders() {
           {visible.map((d, i) => (
             <Animated.View
               key={d.delivery_id}
-              entering={FadeInDown.delay(i * 35).duration(Motion.base)}
               layout={LinearTransition.duration(Motion.base)}
             >
               <OrderCard

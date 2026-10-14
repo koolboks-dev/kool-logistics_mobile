@@ -29,7 +29,8 @@ const VARIANTS: Record<TextVariant, { fontFamily: string; fontSize: number; line
   body: { fontFamily: FontFamily.regular, fontSize: FontSize.base, lineHeight: 21 },
   bodyStrong: { fontFamily: FontFamily.medium, fontSize: FontSize.base, lineHeight: 21 },
   caption: { fontFamily: FontFamily.regular, fontSize: FontSize.sm, lineHeight: 17 },
-  label: { fontFamily: FontFamily.semibold, fontSize: FontSize.xs, lineHeight: 15, letterSpacing: 0.8 },
+  // Small section title, sentence case (the CRM has no ALL-CAPS eyebrows).
+  label: { fontFamily: FontFamily.semibold, fontSize: 13, lineHeight: 18 },
   mono: { fontFamily: FontFamily.medium, fontSize: FontSize.base, lineHeight: 20, letterSpacing: 0.4 },
 };
 
@@ -39,7 +40,8 @@ export function Text({ variant = 'body', tone = 'default', center, style, ...res
     default: c.text,
     secondary: c.textSecondary,
     muted: c.textMuted,
-    brand: c.brand,
+    // Orange text uses the deeper shade so it stays readable on white (CRM §1).
+    brand: c.brandText,
     success: c.success,
     danger: c.danger,
     onBrand: c.onBrand,

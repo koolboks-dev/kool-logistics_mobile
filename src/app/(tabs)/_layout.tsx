@@ -19,7 +19,9 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        animation: 'shift',
+        // No tab-switch animation: the 'shift' fade could stall at zero opacity
+        // and leave a tab blank until you switched away and back.
+        animation: 'none',
         sceneStyle: { backgroundColor: colors.background },
       }}
       tabBar={({ state, navigation }) => {

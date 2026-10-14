@@ -214,7 +214,35 @@ export function TrackIcon({ size = 24, color = '#000', active, ...rest }: IconPr
   );
 }
 
+/** Stat tile: two stacked parcels on the move (active tasks). Duotone. */
+export function StackIcon({ size = 24, color = '#000', ...rest }: IconProps) {
+  return (
+    <Svg {...base(size)} {...rest}>
+      <Rect x={7.4} y={3.6} width={10.2} height={7.6} rx={1.6} fill={color} fillOpacity={0.18} {...stroke(color)} />
+      <Path d="M11 3.6v2.6h3v-2.6" {...stroke(color)} />
+      <Rect x={5.4} y={11.8} width={13.2} height={8.6} rx={1.8} fill={color} fillOpacity={0.32} {...stroke(color)} />
+      <Path d="M10.4 11.8v3h3.2v-3" {...stroke(color)} />
+      <Path d="M1.8 14.6h2M2.6 17.6h1.4" {...stroke(color)} strokeOpacity={0.55} />
+    </Svg>
+  );
+}
+
+/** Stat tile: a delivered parcel with a check badge (completed). Duotone. */
+export function CompletedIcon({ size = 24, color = '#000', ...rest }: IconProps) {
+  return (
+    <Svg {...base(size)} {...rest}>
+      <Path d="M10.6 3.2 18 7v5.2" {...stroke(color)} />
+      <Path d="M10.6 3.2 3.2 7v8.6l7.4 3.8" fill={color} fillOpacity={0.18} {...stroke(color)} />
+      <Path d="M3.2 7l7.4 3.8L18 7M10.6 10.8v8.6" {...stroke(color)} />
+      <Circle cx={17.4} cy={17.2} r={4.6} fill={color} {...stroke(color)} />
+      <Path d="m15.4 17.3 1.4 1.4 2.6-2.8" stroke="#FFFFFF" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export const Icons = {
+  stack: StackIcon,
+  completed: CompletedIcon,
   home: HomeIcon,
   package: PackageIcon,
   scan: ScanIcon,

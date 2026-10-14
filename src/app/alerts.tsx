@@ -2,7 +2,7 @@ import { Glyph, type GlyphName } from '@/components/icons/Glyph';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import {
   BottomSheet,
@@ -10,6 +10,7 @@ import {
   Card,
   EmptyState,
   ScreenScroll,
+  SkeletonList,
   SwipeableRow,
   Text,
   useToast,
@@ -36,7 +37,7 @@ export default function Alerts() {
   const { colors } = useTheme();
   const toast = useToast();
 
-  const { data, refetch } = useNotificationsQuery({ pageSize: 50 });
+  const { data, refetch, isLoading } = useNotificationsQuery({ pageSize: 50 });
   const [markRead] = useMarkNotificationReadMutation();
   const [markAllRead, { isLoading: markingAll }] = useMarkAllNotificationsReadMutation();
 
@@ -84,9 +85,11 @@ export default function Alerts() {
           ) : undefined
         }
       >
-        {notifications.length === 0 ? (
+        {isLoading ? (
+          <SkeletonList count={6} row="list" />
+        ) : notifications.length === 0 ? (
           <EmptyState
-            icon="notifications-off-outline"
+            art="notifications"
             title="Nothing new"
             description="Delivery assignments, changes, and alerts will appear here."
           />
@@ -104,7 +107,6 @@ export default function Alerts() {
                 return (
                   <Animated.View
                     key={n.id}
-                    entering={FadeInDown.delay(i * 35).duration(Motion.base)}
                     layout={LinearTransition.duration(Motion.base)}
                   >
                     <SwipeableRow

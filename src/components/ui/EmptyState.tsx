@@ -1,19 +1,25 @@
 import { Glyph, type GlyphName } from '@/components/icons/Glyph';
+import {
+  EmptyArt,
+  type EmptyArtName,
+} from '@/components/illustrations/EmptyArt';
 import { View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { Motion, Spacing, useColors } from '@/theme';
+import { Spacing, useColors } from '@/theme';
 import { Button } from './Button';
 import { Text } from './Text';
 
 export function EmptyState({
   icon = 'file-tray-outline',
+  art,
   title,
   description,
   actionLabel,
   onAction,
 }: {
   icon?: GlyphName;
+  /** A custom illustration; takes the place of the icon. */
+  art?: EmptyArtName;
   title: string;
   description?: string;
   actionLabel?: string;
@@ -21,22 +27,29 @@ export function EmptyState({
 }) {
   const c = useColors();
   return (
-    <Animated.View
-      entering={FadeInDown.duration(Motion.slow)}
-      style={{ alignItems: 'center', paddingVertical: Spacing.xxxl, gap: Spacing.md }}
+    <View
+      style={{
+        alignItems: 'center',
+        paddingVertical: Spacing.xxl,
+        gap: Spacing.md,
+      }}
     >
-      <View
-        style={{
-          width: 76,
-          height: 76,
-          borderRadius: 999,
-          backgroundColor: c.surfaceAlt,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Glyph name={icon} size={34} color={c.textMuted} />
-      </View>
+      {art ? (
+        <EmptyArt name={art} />
+      ) : (
+        <View
+          style={{
+            width: 76,
+            height: 76,
+            borderRadius: 999,
+            backgroundColor: c.surfaceAlt,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Glyph name={icon} size={34} color={c.textMuted} />
+        </View>
+      )}
       <Text variant="subheading" center>
         {title}
       </Text>
@@ -46,8 +59,14 @@ export function EmptyState({
         </Text>
       )}
       {actionLabel && (
-        <Button label={actionLabel} onPress={onAction} fullWidth={false} size="md" style={{ marginTop: Spacing.sm }} />
+        <Button
+          label={actionLabel}
+          onPress={onAction}
+          fullWidth={false}
+          size="md"
+          style={{ alignSelf: 'center', minWidth: 200, marginTop: Spacing.sm }}
+        />
       )}
-    </Animated.View>
+    </View>
   );
 }

@@ -2,14 +2,14 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Input, Text, useToast } from '@/components/ui';
 import { useChangePasswordMutation } from '@/store/auth-api';
 import { apiErrorMessage } from '@/store/base-api';
 import { useSession } from '@/store/session';
-import { Layout, LogoRatio, Motion, Spacing, useTheme } from '@/theme';
+import { Layout, LogoRatio, Spacing, useTheme } from '@/theme';
 
 export default function ChangePassword() {
   const router = useRouter();
@@ -70,7 +70,7 @@ export default function ChangePassword() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View entering={FadeInDown.duration(Motion.base)}>
+          <Animated.View>
             <Image
               source={
                 mode === 'dark'
@@ -82,7 +82,7 @@ export default function ChangePassword() {
             />
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)}>
+          <Animated.View>
             <Text variant="title">
               {mustChangePassword ? 'Create a new password' : 'Change password'}
             </Text>
@@ -93,7 +93,7 @@ export default function ChangePassword() {
             </Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)} style={styles.form}>
+          <Animated.View style={styles.form}>
             <Input
               label="Current password"
               placeholder="Enter current password"
@@ -138,14 +138,14 @@ export default function ChangePassword() {
             />
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={styles.actions}>
+          <Animated.View style={styles.actions}>
             <Button
-              label={isLoading ? 'Updating password…' : 'Save New Password'}
+              label={isLoading ? 'Updating password…' : 'Save new password'}
               loading={isLoading}
               onPress={submit}
             />
             <Button
-              label="Sign Out"
+              label="Sign out"
               variant="outline"
               onPress={() => {
                 signOut();

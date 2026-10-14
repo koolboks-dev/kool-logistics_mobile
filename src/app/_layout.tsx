@@ -35,7 +35,7 @@ export default function RootLayout() {
     if (fontsReady && tokensReady) SplashScreen.hideAsync();
   }, [fontsReady, tokensReady]);
 
-  // Keep the splash up until Poppins and the saved session are resolved, so no
+  // Keep the splash up until Work Sans and the saved session are resolved, so no
   // frame renders in the system font and then reflows.
   if (!fontsReady || !tokensReady) return null;
 

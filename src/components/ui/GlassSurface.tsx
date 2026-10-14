@@ -17,6 +17,8 @@ export type GlassSurfaceProps = ViewProps & {
    * anything that had its own fill (an avatar, a tinted button) should pass it.
    */
   tint?: string;
+  /** Force light or dark glass (e.g. glass on a dark card in light mode). Defaults to the app theme. */
+  scheme?: 'light' | 'dark';
 };
 
 /**
@@ -33,11 +35,14 @@ export function GlassSurface({
   bordered = true,
   intensity = 40,
   tint,
+  scheme,
   style,
   children,
   ...rest
 }: GlassSurfaceProps) {
-  const { mode, colors } = useTheme();
+  const theme = useTheme();
+  const { colors } = theme;
+  const mode = scheme ?? theme.mode;
 
   const shell: ViewStyle = {
     borderRadius: radius,
@@ -79,7 +84,7 @@ export function GlassSurface({
       <View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: colors.glassTint, opacity: tint ? 0.28 : 0.5 },
+          { backgroundColor: scheme === 'dark' ? 'rgba(15,23,42,0.6)' : scheme === 'light' ? 'rgba(255,255,255,0.6)' : colors.glassTint, opacity: tint ? 0.28 : 0.5 },
         ]}
       />
       {children}

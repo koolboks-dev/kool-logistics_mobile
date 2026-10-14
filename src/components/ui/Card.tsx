@@ -1,4 +1,4 @@
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { View, type ViewProps } from 'react-native';
 
 import { Elevation, Radius, Spacing, useColors } from '@/theme';
 
@@ -20,10 +20,11 @@ export function Card({
     <View
       style={[
         { borderRadius: radius, backgroundColor: c.surface },
-        variant === 'outlined' && { borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
-        variant === 'filled' && { backgroundColor: c.surfaceAlt },
-        variant === 'elevated' && Elevation.md,
-        variant === 'elevated' && { shadowColor: '#000' },
+        // CRM cards: white, 1px #E9ECEF border, 12px radius, soft shadow at most.
+        variant === 'outlined' && { borderWidth: 1, borderColor: c.border },
+        variant === 'filled' && { backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border },
+        variant === 'elevated' && { borderWidth: 1, borderColor: c.border },
+        variant === 'elevated' && Elevation.sm,
         padded && { padding: Spacing.base },
         style,
       ]}

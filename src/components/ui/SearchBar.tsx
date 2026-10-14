@@ -1,6 +1,6 @@
 import { Glyph } from '@/components/icons/Glyph';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeOut } from 'react-native-reanimated';
 
 import { FontFamily, FontSize, Layout, Radius, Spacing, useColors } from '@/theme';
 
@@ -20,7 +20,7 @@ export function SearchBar({
     <View
       style={[
         styles.wrap,
-        { backgroundColor: c.surfaceAlt, borderRadius: Radius.pill, height: Layout.controlHeightSm },
+        { backgroundColor: c.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: c.border, height: Layout.controlHeightSm },
       ]}
     >
       <Glyph name="search" size={17} color={c.textMuted} />
@@ -34,7 +34,7 @@ export function SearchBar({
         style={[styles.input, { color: c.text }]}
       />
       {value.length > 0 && (
-        <Animated.View entering={FadeIn.duration(120)} exiting={FadeOut.duration(120)}>
+        <Animated.View exiting={FadeOut.duration(120)}>
           <Pressable onPress={() => onChangeText('')} hitSlop={8}>
             <Glyph name="close-circle" size={17} color={c.textMuted} />
           </Pressable>

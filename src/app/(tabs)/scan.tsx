@@ -57,7 +57,7 @@ export default function Scan() {
         </View>
         <View style={styles.permission}>
           <EmptyState
-            icon="camera-outline"
+            art="camera"
             title="Camera access needed"
             description="KOOL Logistics uses the camera to read waybill QR codes on packages."
             actionLabel="Allow camera"

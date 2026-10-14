@@ -2,12 +2,12 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Input, Text, useToast } from '@/components/ui';
 import { useSession } from '@/store/session';
-import { Layout, LogoRatio, Motion, Spacing, useTheme } from '@/theme';
+import { Layout, LogoRatio, Spacing, useTheme } from '@/theme';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -75,7 +75,7 @@ export default function SignIn() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View entering={FadeInDown.duration(Motion.base)}>
+          <Animated.View>
             <Image
               source={
                 mode === 'dark'
@@ -87,7 +87,7 @@ export default function SignIn() {
             />
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(60).duration(Motion.base)}>
+          <Animated.View>
             <Text variant="title">Hi there 👋</Text>
             <Text variant="caption" tone="secondary">
               Sign in with your Koolboks rider account
@@ -96,7 +96,6 @@ export default function SignIn() {
 
           {notice && (
             <Animated.View
-              entering={FadeInDown.duration(Motion.base)}
               style={[styles.noticeBox, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}
             >
               <Text variant="caption" style={{ color: colors.danger }}>
@@ -105,7 +104,7 @@ export default function SignIn() {
             </Animated.View>
           )}
 
-          <Animated.View entering={FadeInDown.delay(120).duration(Motion.base)} style={styles.form}>
+          <Animated.View style={styles.form}>
             <Input
               label="Email"
               placeholder="Enter your email"
@@ -150,7 +149,7 @@ export default function SignIn() {
             </Pressable>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(180).duration(Motion.base)} style={styles.action}>
+          <Animated.View style={styles.action}>
             <Button label={busy ? 'Logging in…' : 'Log In'} loading={busy} onPress={submit} />
           </Animated.View>
         </ScrollView>
