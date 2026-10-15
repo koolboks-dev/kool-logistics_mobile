@@ -29,6 +29,8 @@ import { useRiderMeQuery, useUpdateRiderMeMutation, type RiderOnboardingBody, ty
 import { useSession } from '@/store/session';
 import { Layout, Radius, Spacing, useTheme } from '@/theme';
 
+const AVATAR = 72;
+
 const STEPS = ['Personal Details', 'Identification', 'Vehicle Information', 'Work Preferences', 'Payment Details'] as const;
 
 type Form = {
@@ -316,8 +318,11 @@ export default function Onboarding() {
             {step === 0 && (
               <>
                 <View style={styles.photoRow}>
-                  <Avatar name={f.fullName || user?.name} uri={f.photo || undefined} size={72} />
-                  <View style={{ flex: 1, gap: Spacing.sm }}>
+                  {/* Clipped to its circle; flat (no blur) so nothing draws outside it while scrolling. */}
+                  <View style={[styles.avatarClip, { backgroundColor: colors.surfaceAlt }]}>
+                    <Avatar name={f.fullName || user?.name} uri={f.photo || undefined} size={AVATAR} variant="soft" />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0, gap: Spacing.sm }}>
                     <Text variant="label">Profile photo</Text>
                     <View style={styles.photoActions}>
                       <Button
@@ -325,10 +330,18 @@ export default function Onboarding() {
                         icon="camera-outline"
                         variant="outline"
                         size="sm"
+                        fullWidth={false}
                         loading={uploading === 'photo'}
                         onPress={() => void pickPhoto('photo', 'camera')}
                       />
-                      <Button label="Gallery" icon="image-outline" variant="ghost" size="sm" onPress={() => void pickPhoto('photo', 'library')} />
+                      <Button
+                        label="Gallery"
+                        icon="image-outline"
+                        variant="ghost"
+                        size="sm"
+                        fullWidth={false}
+                        onPress={() => void pickPhoto('photo', 'library')}
+                      />
                     </View>
                   </View>
                 </View>
@@ -680,8 +693,8 @@ function PhotoList({
       )}
       {urls.length < 5 && (
         <View style={styles.photoActions}>
-          <Button label="Take photo" icon="camera-outline" variant="outline" size="sm" loading={busy} onPress={() => onAdd('camera')} />
-          <Button label="Gallery" icon="images-outline" variant="ghost" size="sm" disabled={busy} onPress={() => onAdd('library')} />
+          <Button label="Take photo" icon="camera-outline" variant="outline" size="sm" fullWidth={false} loading={busy} onPress={() => onAdd('camera')} />
+          <Button label="Gallery" icon="images-outline" variant="ghost" size="sm" fullWidth={false} disabled={busy} onPress={() => onAdd('library')} />
         </View>
       )}
     </View>
@@ -701,6 +714,7 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   form: { gap: Spacing.lg },
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
+  avatarClip: { width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, overflow: 'hidden', flexShrink: 0 },
   photoActions: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
   twoCol: { flexDirection: 'row', gap: Spacing.sm },
   dateRow: { flexDirection: 'row', gap: Spacing.sm },

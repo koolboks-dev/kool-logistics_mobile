@@ -8,7 +8,8 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { clearStoredTokens, hasAccessToken, onTokensChange, writeStoredTokens } from '@/lib/token-storage';
+import { API_BASE_URL } from '@/lib/api-config';
+import { clearStoredTokens, hasAccessToken, onTokensChange, readStoredTokens, writeStoredTokens } from '@/lib/token-storage';
 import { authApi, isRiderRole, useWhoAmIQuery, type WhoAmI } from './auth-api';
 import { apiErrorMessage, apiErrorStatus, baseApi, isNetworkError } from './base-api';
 import { useAppDispatch } from './hooks';
@@ -38,6 +39,38 @@ type SessionState = {
 };
 
 const SessionContext = createContext<SessionState>({} as SessionState);
+
+/**
+ * Signing out takes the rider offline, so dispatch stops assigning them and
+ * logistics sees "Offline" straight away. Runs in the background with the
+ * tokens captured before they are cleared; an expired access token is
+ * refreshed once. Best effort — a failure never blocks signing out.
+ */
+function goOfflineInBackground(): void {
+  const tokens = readStoredTokens();
+  if (!tokens?.access) return;
+  const post = (access: string) =>
+    fetch(`${API_BASE_URL}/deliveries/rider/availability/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access}` },
+      body: JSON.stringify({ is_available: false }),
+    });
+  void (async () => {
+    try {
+      const res = await post(tokens.access!);
+      if (res.status !== 401 || !tokens.refresh) return;
+      const r = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh: tokens.refresh }),
+      });
+      const data = (await r.json().catch(() => ({}))) as { access?: string };
+      if (r.ok && data.access) await post(data.access);
+    } catch {
+      // offline — the rider stays signed out either way
+    }
+  })();
+}
 
 function notRiderMessage(role: string) {
   const r = role ? ` (${role})` : '';
@@ -159,7 +192,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       notice,
       clearNotice: () => setNotice(null),
       signIn,
-      signOut: (why?: string) => endSession(why),
+      signOut: (why?: string) => {
+        if (status === 'signedIn' || status === 'offline') goOfflineInBackground();
+        endSession(why);
+      },
       retry: () => {
         setStatus('booting');
         loadSession();
