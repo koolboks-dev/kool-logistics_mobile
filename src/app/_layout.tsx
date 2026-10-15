@@ -15,6 +15,7 @@ import { store } from '@/store';
 import { LocationProvider } from '@/store/location';
 import { RealtimeProvider } from '@/store/realtime';
 import { SessionProvider, useSession } from '@/store/session';
+import { useRiderMeQuery } from '@/store/rider-api';
 import { AppFonts, AppThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -67,11 +68,14 @@ export default function RootLayout() {
  * covers a session that ends mid-use (refresh token rejected).
  */
 function useSessionGuard() {
-  const { status, mustChangePassword } = useSession();
+  const { status, mustChangePassword, onboardingDeferred } = useSession();
   const segments = useSegments() as string[];
   const router = useRouter();
   const top = segments[0];
   const sub = segments[1];
+  // Riders with missing onboarding details (e.g. fresh sign-ups) finish it first.
+  const me = useRiderMeQuery(undefined, { skip: status !== 'signedIn' || mustChangePassword });
+  const needsOnboarding = me.data?.onboarding?.complete === false && !onboardingDeferred;
 
   useEffect(() => {
     if (status === 'booting' || status === 'offline') return;
@@ -85,8 +89,15 @@ function useSessionGuard() {
       if (!onChangePassword) router.replace('/(auth)/change-password');
       return;
     }
-    if (inAuth && !onChangePassword) router.replace('/(tabs)/home');
-  }, [status, mustChangePassword, top, sub, router]);
+    if (needsOnboarding) {
+      if (top !== 'onboarding' && top !== 'help') router.replace('/onboarding');
+      return;
+    }
+    if (inAuth && !onChangePassword) {
+      if (me.isLoading) return; // wait so a new rider goes straight to onboarding
+      router.replace('/(tabs)/home');
+    }
+  }, [status, mustChangePassword, needsOnboarding, me.isLoading, top, sub, router]);
 }
 
 function ThemedShell() {

@@ -79,6 +79,17 @@ export default function Account() {
           </Text>
           <Card padded={false}>
             <ListRow
+              icon="person-outline"
+              title="Rider details"
+              subtitle={
+                meData?.onboarding?.complete === false
+                  ? 'Finish your onboarding'
+                  : 'Personal, ID, vehicle and payment details'
+              }
+              onPress={() => router.push('/onboarding')}
+            />
+            <Divider inset={Spacing.md} />
+            <ListRow
               icon="bicycle-outline"
               title="Vehicle"
               subtitle={

@@ -30,10 +30,61 @@ export type RiderProfile = {
   active_count: number;
   last_location_at: string | null;
   must_change_password: boolean;
+  // Onboarding details (filled by logistics or by the rider in the app).
+  first_name?: string;
+  last_name?: string;
+  date_of_birth?: string | null;
+  residential_address?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  id_type?: string;
+  id_number_last4?: string;
+  id_expiry?: string | null;
+  vehicle_color?: string;
+  documents?: Record<string, string | string[]>;
+  rider_type?: string;
+  working_hours?: string;
+  availability_schedule?: string;
+  bank_name?: string;
+  bank_account_name?: string;
+  bank_account_last4?: string;
+  payout_method?: string;
 };
+
+export type OnboardingStatus = { complete: boolean; missing: string[] };
+
+/** What the rider can fill in themselves (PATCH /deliveries/rider/me/). */
+export type RiderOnboardingBody = Partial<{
+  full_name: string;
+  photo_url: string;
+  date_of_birth: string;
+  residential_address: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  id_type: string;
+  id_number: string;
+  id_expiry: string;
+  vehicle_type: string;
+  vehicle_brand: string;
+  vehicle_model: string;
+  vehicle_color: string;
+  vehicle_registration: string;
+  service_states: string[];
+  service_cities: string[];
+  documents: Record<string, string[]>;
+  rider_type: string;
+  working_hours: string;
+  availability_schedule: string;
+  bank_name: string;
+  bank_account_name: string;
+  bank_account_number: string;
+  payout_method: string;
+}>;
 
 export type RiderMe = {
   rider: RiderProfile;
+  /** Missing on older backends — treat as complete. */
+  onboarding?: OnboardingStatus;
   location_interval_seconds: number;
   min_location_interval_seconds: number;
 };
@@ -188,6 +239,25 @@ export const riderApi = baseApi.injectEndpoints({
       providesTags: ['RiderMe'],
     }),
 
+    updateRiderMe: build.mutation<{ success: boolean; onboarding: OnboardingStatus }, RiderOnboardingBody>({
+      query: (body) => ({ url: '/deliveries/rider/me/', method: 'PATCH', body }),
+      invalidatesTags: ['RiderMe', 'Me'],
+      // Store the new onboarding status at once, so the session guard doesn't
+      // act on the stale "incomplete" value while the profile refetches.
+      async onQueryStarted(_body, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            riderApi.util.updateQueryData('riderMe', undefined, (draft) => {
+              draft.onboarding = data.onboarding;
+            }),
+          );
+        } catch {
+          // the screen shows the error
+        }
+      },
+    }),
+
     setAvailability: build.mutation<{ is_available: boolean }, boolean>({
       query: (isAvailable) => ({
         url: '/deliveries/rider/availability/',
@@ -292,6 +362,7 @@ export const riderApi = baseApi.injectEndpoints({
 
 export const {
   useRiderMeQuery,
+  useUpdateRiderMeMutation,
   useSetAvailabilityMutation,
   useAssignedDeliveriesQuery,
   useDeliveryQuery,

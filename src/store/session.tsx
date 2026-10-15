@@ -30,6 +30,11 @@ type SessionState = {
   retry: () => void;
   /** Called after a successful password change. */
   passwordChanged: () => void;
+  /** Sign-up finished (tokens already stored) — load the new rider's session. */
+  startSession: () => Promise<void>;
+  /** The rider chose "Finish later" on onboarding (this app session only). */
+  onboardingDeferred: boolean;
+  deferOnboarding: () => void;
 };
 
 const SessionContext = createContext<SessionState>({} as SessionState);
@@ -45,6 +50,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<WhoAmI | null>(null);
   const [forcedChange, setForcedChange] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [onboardingDeferred, setOnboardingDeferred] = useState(false);
   const signingOut = useRef(false);
 
   // Keep the profile fresh while signed in (e.g. after the password change).
@@ -58,6 +64,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       dispatch(baseApi.util.resetApiState());
       setUser(null);
       setForcedChange(false);
+      setOnboardingDeferred(false);
       setStatus('signedOut');
       if (why) setNotice(why);
       signingOut.current = false;
@@ -158,8 +165,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         loadSession();
       },
       passwordChanged: () => setForcedChange(false),
+      startSession: loadSession,
+      onboardingDeferred,
+      deferOnboarding: () => setOnboardingDeferred(true),
     }),
-    [status, currentUser, forcedChange, notice, signIn, endSession, loadSession],
+    [status, currentUser, forcedChange, notice, signIn, endSession, loadSession, onboardingDeferred],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -36,6 +36,23 @@ export type ChangePasswordResponse = {
   must_change_password: boolean;
 };
 
+export type Market = 'NG' | 'KE';
+
+export type RegisterStartBody = {
+  email: string;
+  phone_number: string;
+  market: Market;
+  /** The rider app only creates rider accounts. */
+  role: 'rider';
+};
+
+export type RegisterStartResponse = {
+  success: boolean;
+  message: string;
+  /** Only echoed by the backend in development. */
+  code?: string;
+};
+
 export const authApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     login: build.mutation<LoginResponse, { email: string; password: string }>({
@@ -58,6 +75,18 @@ export const authApi = baseApi.injectEndpoints({
     >({
       query: (body) => ({ url: '/auth/forgot-password/reset/', method: 'POST', body }),
     }),
+    /** Sign-up step 1 — send a 6-digit code to the email (and phone). */
+    registerStart: build.mutation<RegisterStartResponse, RegisterStartBody>({
+      query: (body) => ({ url: '/auth/vendor/register/email/', method: 'POST', body }),
+    }),
+    /** Sign-up step 2 — the code creates the account and signs it in. */
+    registerVerify: build.mutation<TokenPair & { success: boolean; message: string }, RegisterStartBody & { code: string }>({
+      query: (body) => ({ url: '/auth/vendor/register/verify-email/', method: 'POST', body }),
+    }),
+    /** Sign-up step 3 — the password used on Kool Logistics (app and web). */
+    setPassword: build.mutation<{ success: boolean; message: string }, { password: string }>({
+      query: (body) => ({ url: '/auth/vendor/register/set-password/', method: 'POST', body }),
+    }),
   }),
 });
 
@@ -68,6 +97,9 @@ export const {
   useChangePasswordMutation,
   useForgotPasswordRequestMutation,
   useForgotPasswordResetMutation,
+  useRegisterStartMutation,
+  useRegisterVerifyMutation,
+  useSetPasswordMutation,
 } = authApi;
 
 /** Riders use the `delivery` role on the backend (`rider` is accepted too). */

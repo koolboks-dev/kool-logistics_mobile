@@ -98,7 +98,8 @@ export default function Welcome() {
           { paddingBottom: insets.bottom + Spacing.lg, backgroundColor: colors.background, borderTopColor: colors.border },
         ]}
       >
-        <Button label="Continue" icon="arrow-forward" iconPosition="right" onPress={() => router.push('/(auth)/sign-in')} />
+        <Button label="Sign in" icon="arrow-forward" iconPosition="right" onPress={() => router.push('/(auth)/sign-in')} />
+        <Button label="Become a rider" variant="outline" onPress={() => router.push('/(auth)/sign-up')} />
       </Animated.View>
     </View>
   );

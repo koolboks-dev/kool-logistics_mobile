@@ -1,13 +1,20 @@
-import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import Animated from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, Input, Text, useToast } from '@/components/ui';
-import { useSession } from '@/store/session';
-import { Layout, LogoRatio, Spacing, useTheme } from '@/theme';
+import { Button, Input, Text, useToast } from "@/components/ui";
+import { useSession } from "@/store/session";
+import { Layout, LogoRatio, Spacing, useTheme } from "@/theme";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,15 +25,15 @@ export default function SignIn() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState<string>();
   const [passwordError, setPasswordError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (notice) {
-      toast.show(notice, 'error');
+      toast.show(notice, "error");
     }
   }, [notice, toast]);
 
@@ -34,11 +41,11 @@ export default function SignIn() {
     let ok = true;
 
     if (!EMAIL_RE.test(email.trim())) {
-      setEmailError('Enter a valid email address');
+      setEmailError("Enter a valid email address");
       ok = false;
     }
     if (password.length < 4) {
-      setPasswordError('Password must be at least 4 characters');
+      setPasswordError("Password must be at least 4 characters");
       ok = false;
     }
     if (!ok) return;
@@ -49,18 +56,18 @@ export default function SignIn() {
       const res = await signIn(email.trim(), password);
       setBusy(false);
       if (!res.ok) {
-        toast.show(res.message, 'error');
+        toast.show(res.message, "error");
         return;
       }
-      toast.show('Welcome back', 'success');
+      toast.show("Welcome back", "success");
       if (mustChangePassword) {
-        router.replace('/(auth)/change-password');
+        router.replace("/(auth)/change-password");
       } else {
-        router.replace('/(tabs)/home');
+        router.replace("/(tabs)/home");
       }
     } catch {
       setBusy(false);
-      toast.show('Sign in failed. Check your network and try again.', 'error');
+      toast.show("Sign in failed. Check your network and try again.", "error");
     }
   };
 
@@ -68,19 +75,22 @@ export default function SignIn() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerStyle={[styles.scroll, { paddingTop: insets.top + Spacing.lg }]}
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingTop: insets.top + Spacing.lg },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <Animated.View>
             <Image
               source={
-                mode === 'dark'
-                  ? require('@/assets/images/logo/logo-white-bg.png')
-                  : require('@/assets/images/logo/logo.png')
+                mode === "dark"
+                  ? require("@/assets/images/logo/logo-white-bg.png")
+                  : require("@/assets/images/logo/logo.png")
               }
               style={{ width: 92, height: 92 / LogoRatio }}
               contentFit="contain"
@@ -88,7 +98,7 @@ export default function SignIn() {
           </Animated.View>
 
           <Animated.View>
-            <Text variant="title">Hi there 👋</Text>
+            <Text variant="title">Hi there</Text>
             <Text variant="caption" tone="secondary">
               Sign in with your Koolboks rider account
             </Text>
@@ -96,7 +106,13 @@ export default function SignIn() {
 
           {notice && (
             <Animated.View
-              style={[styles.noticeBox, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}
+              style={[
+                styles.noticeBox,
+                {
+                  backgroundColor: colors.dangerSoft,
+                  borderColor: colors.danger,
+                },
+              ]}
             >
               <Text variant="caption" style={{ color: colors.danger }}>
                 {notice}
@@ -140,8 +156,8 @@ export default function SignIn() {
             />
 
             <Pressable
-              onPress={() => router.push('/(auth)/forgot-password')}
-              style={{ alignSelf: 'flex-end', paddingVertical: Spacing.xs }}
+              onPress={() => router.push("/(auth)/forgot-password")}
+              style={{ alignSelf: "flex-end", paddingVertical: Spacing.xs }}
             >
               <Text variant="caption" tone="brand">
                 Forgot password?
@@ -150,7 +166,22 @@ export default function SignIn() {
           </Animated.View>
 
           <Animated.View style={styles.action}>
-            <Button label={busy ? 'Logging in…' : 'Log In'} loading={busy} onPress={submit} />
+            <Button
+              label={busy ? "Logging in…" : "Log In"}
+              loading={busy}
+              onPress={submit}
+            />
+            <Pressable
+              onPress={() => router.push("/(auth)/sign-up")}
+              style={{ alignSelf: "center", paddingVertical: Spacing.md }}
+            >
+              <Text variant="caption" tone="secondary">
+                New to Koolboks?{" "}
+                <Text variant="caption" tone="brand">
+                  Create a rider account
+                </Text>
+              </Text>
+            </Pressable>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -164,8 +195,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
     gap: Spacing.xl,
     maxWidth: Layout.maxContentWidth,
-    width: '100%',
-    alignSelf: 'center',
+    width: "100%",
+    alignSelf: "center",
   },
   noticeBox: {
     padding: Spacing.md,
