@@ -61,7 +61,7 @@ export async function refreshSession(): Promise<boolean> {
     }
     let res: Response;
     try {
-      res = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+      res = await fetch(`${API_BASE_URL}/logistics/auth/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh }),

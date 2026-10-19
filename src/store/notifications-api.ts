@@ -25,20 +25,20 @@ export type NotificationPage = {
 export const notificationsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     notifications: build.query<NotificationPage, { pageSize: number }>({
-      query: ({ pageSize }) => `/users/notifications/?page=1&page_size=${pageSize}`,
+      query: ({ pageSize }) => `/logistics/notifications/?page=1&page_size=${pageSize}`,
       providesTags: ['Notifications'],
     }),
     unreadCount: build.query<number, void>({
-      query: () => '/users/notifications/?page=1&page_size=1',
+      query: () => '/logistics/notifications/?page=1&page_size=1',
       transformResponse: (res: { unread_count?: number }) => res.unread_count ?? 0,
       providesTags: ['Notifications'],
     }),
     markNotificationRead: build.mutation<{ success: boolean }, string>({
-      query: (id) => ({ url: `/users/notifications/${encodeURIComponent(id)}/read/`, method: 'POST' }),
+      query: (id) => ({ url: `/logistics/notifications/${encodeURIComponent(id)}/read/`, method: 'POST' }),
       invalidatesTags: ['Notifications'],
     }),
     markAllNotificationsRead: build.mutation<{ success: boolean; unread_count: number }, void>({
-      query: () => ({ url: '/users/notifications/read-all/', method: 'POST', body: {} }),
+      query: () => ({ url: '/logistics/notifications/read-all/', method: 'POST', body: {} }),
       invalidatesTags: ['Notifications'],
     }),
   }),

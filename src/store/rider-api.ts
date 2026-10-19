@@ -235,12 +235,12 @@ const deliveryTags = (d: RiderDelivery | undefined) =>
 export const riderApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     riderMe: build.query<RiderMe, void>({
-      query: () => '/deliveries/rider/me/',
+      query: () => '/logistics/rider/me/',
       providesTags: ['RiderMe'],
     }),
 
     updateRiderMe: build.mutation<{ success: boolean; onboarding: OnboardingStatus }, RiderOnboardingBody>({
-      query: (body) => ({ url: '/deliveries/rider/me/', method: 'PATCH', body }),
+      query: (body) => ({ url: '/logistics/rider/me/', method: 'PATCH', body }),
       invalidatesTags: ['RiderMe', 'Me'],
       // Store the new onboarding status at once, so the session guard doesn't
       // act on the stale "incomplete" value while the profile refetches.
@@ -260,7 +260,7 @@ export const riderApi = baseApi.injectEndpoints({
 
     setAvailability: build.mutation<{ is_available: boolean }, boolean>({
       query: (isAvailable) => ({
-        url: '/deliveries/rider/availability/',
+        url: '/logistics/rider/availability/',
         method: 'POST',
         body: { is_available: isAvailable },
       }),
@@ -285,7 +285,7 @@ export const riderApi = baseApi.injectEndpoints({
     }),
 
     assignedDeliveries: build.query<RiderDelivery[], { active: boolean }>({
-      query: ({ active }) => `/deliveries/assigned/?active=${active ? 'true' : 'false'}`,
+      query: ({ active }) => `/logistics/rider/deliveries/?active=${active ? 'true' : 'false'}`,
       transformResponse: (res: { items?: RiderDelivery[] }) => res.items ?? [],
       providesTags: (result, _e, { active }) => [
         { type: 'Deliveries', id: active ? 'ACTIVE' : 'DONE' },
@@ -294,13 +294,13 @@ export const riderApi = baseApi.injectEndpoints({
     }),
 
     delivery: build.query<RiderDelivery, string>({
-      query: (id) => `/deliveries/assigned/${encodeURIComponent(id)}/`,
+      query: (id) => `/logistics/rider/deliveries/${encodeURIComponent(id)}/`,
       providesTags: (result, _e, id) => [{ type: 'Delivery', id: result?.delivery_id ?? id }],
     }),
 
     advanceDelivery: build.mutation<RiderDelivery, { id: string; target: RiderStage; body?: StageBody }>({
       query: ({ id, target, body }) => ({
-        url: `/deliveries/assigned/${encodeURIComponent(id)}/status/${target}/`,
+        url: `/logistics/rider/deliveries/${encodeURIComponent(id)}/status/${target}/`,
         method: 'POST',
         body: body ?? {},
       }),
@@ -326,7 +326,7 @@ export const riderApi = baseApi.injectEndpoints({
       { id: string; filename: string; content_type: string; data_base64: string }
     >({
       query: ({ id, ...body }) => ({
-        url: `/deliveries/assigned/${encodeURIComponent(id)}/pod-photo/`,
+        url: `/logistics/rider/deliveries/${encodeURIComponent(id)}/pod-photo/`,
         method: 'POST',
         body,
         timeout: 90000,
@@ -338,7 +338,7 @@ export const riderApi = baseApi.injectEndpoints({
       { id: string; category: string; description: string; cannot_complete?: boolean; evidence_urls?: string[] }
     >({
       query: ({ id, ...body }) => ({
-        url: `/deliveries/assigned/${encodeURIComponent(id)}/problem/`,
+        url: `/logistics/rider/deliveries/${encodeURIComponent(id)}/problem/`,
         method: 'POST',
         body,
       }),
@@ -351,11 +351,11 @@ export const riderApi = baseApi.injectEndpoints({
     }),
 
     scanDelivery: build.mutation<ScanResult, string>({
-      query: (token) => ({ url: '/deliveries/scan/', method: 'POST', body: { token } }),
+      query: (token) => ({ url: '/logistics/rider/scan/', method: 'POST', body: { token } }),
     }),
 
     sendLocation: build.mutation<LocationResult, LocationPing>({
-      query: (body) => ({ url: '/deliveries/location/', method: 'POST', body }),
+      query: (body) => ({ url: '/logistics/rider/location/', method: 'POST', body }),
     }),
   }),
 });

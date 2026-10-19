@@ -1,5 +1,5 @@
 /**
- * The rider's session: sign in (backend /auth/login/ + /users/whoami/), token
+ * The rider's session: sign in (backend /logistics/auth/login/ + /logistics/me/), token
  * persistence, the forced password change, and sign-out — including the
  * automatic sign-out when a token refresh is rejected.
  *
@@ -50,7 +50,7 @@ function goOfflineInBackground(): void {
   const tokens = readStoredTokens();
   if (!tokens?.access) return;
   const post = (access: string) =>
-    fetch(`${API_BASE_URL}/deliveries/rider/availability/`, {
+    fetch(`${API_BASE_URL}/logistics/rider/availability/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access}` },
       body: JSON.stringify({ is_available: false }),
@@ -59,7 +59,7 @@ function goOfflineInBackground(): void {
     try {
       const res = await post(tokens.access!);
       if (res.status !== 401 || !tokens.refresh) return;
-      const r = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+      const r = await fetch(`${API_BASE_URL}/logistics/auth/token/refresh/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh: tokens.refresh }),

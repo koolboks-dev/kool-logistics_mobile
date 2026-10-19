@@ -1,7 +1,7 @@
 /**
- * Auth endpoints (RTK Query) on the shared Kool backend — the same account
- * works on Kool Konnect and Kool Logistics Web. Riders have role `delivery`
- * (`rider` is accepted as an alias).
+ * Auth endpoints (RTK Query) — Kool Logistics' own (/logistics/auth/,
+ * /logistics/me/), shared with Kool Logistics Web, never the marketplace's.
+ * Riders have role `delivery` (`rider` is accepted as an alias).
  */
 import { baseApi } from './base-api';
 
@@ -56,36 +56,36 @@ export type RegisterStartResponse = {
 export const authApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     login: build.mutation<LoginResponse, { email: string; password: string }>({
-      query: (body) => ({ url: '/auth/login/', method: 'POST', body }),
+      query: (body) => ({ url: '/logistics/auth/login/', method: 'POST', body }),
     }),
     whoAmI: build.query<WhoAmI, void>({
-      query: () => '/users/whoami/',
+      query: () => '/logistics/me/',
       providesTags: ['Me'],
     }),
     changePassword: build.mutation<ChangePasswordResponse, { current_password: string; new_password: string }>({
-      query: (body) => ({ url: '/auth/change-password/', method: 'POST', body }),
+      query: (body) => ({ url: '/logistics/auth/change-password/', method: 'POST', body }),
       invalidatesTags: ['Me', 'RiderMe'],
     }),
     forgotPasswordRequest: build.mutation<{ success: boolean; message: string }, { email: string }>({
-      query: (body) => ({ url: '/auth/forgot-password/request/', method: 'POST', body }),
+      query: (body) => ({ url: '/logistics/auth/forgot-password/request/', method: 'POST', body }),
     }),
     forgotPasswordReset: build.mutation<
       TokenPair & { success: boolean },
       { email: string; code: string; new_password: string }
     >({
-      query: (body) => ({ url: '/auth/forgot-password/reset/', method: 'POST', body }),
+      query: (body) => ({ url: '/logistics/auth/forgot-password/reset/', method: 'POST', body }),
     }),
     /** Sign-up step 1 — send a 6-digit code to the email (and phone). */
     registerStart: build.mutation<RegisterStartResponse, RegisterStartBody>({
-      query: (body) => ({ url: '/auth/vendor/register/email/', method: 'POST', body }),
+      query: (body) => ({ url: '/logistics/auth/register/start/', method: 'POST', body }),
     }),
     /** Sign-up step 2 — the code creates the account and signs it in. */
     registerVerify: build.mutation<TokenPair & { success: boolean; message: string }, RegisterStartBody & { code: string }>({
-      query: (body) => ({ url: '/auth/vendor/register/verify-email/', method: 'POST', body }),
+      query: (body) => ({ url: '/logistics/auth/register/verify/', method: 'POST', body }),
     }),
     /** Sign-up step 3 — the password used on Kool Logistics (app and web). */
     setPassword: build.mutation<{ success: boolean; message: string }, { password: string }>({
-      query: (body) => ({ url: '/auth/vendor/register/set-password/', method: 'POST', body }),
+      query: (body) => ({ url: '/logistics/auth/register/set-password/', method: 'POST', body }),
     }),
   }),
 });
