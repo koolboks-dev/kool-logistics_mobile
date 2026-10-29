@@ -187,7 +187,7 @@ export function dropoffAddress(d: Pick<RiderDelivery, 'dropoff'>): string {
 
 /** The rider's stage timeline, built from the stage timestamps. */
 export function stageTimeline(d: RiderDelivery): TimelineStep[] {
-  const failed = d.status === 'failed' || d.status === 'cancelled' || d.status === 'returned';
+  const failed = d.status === 'failed' || d.status === 'cancelled' || d.status === 'returning' || d.status === 'returned';
   const freezer = isFreezerDelivery(d);
   const steps: { title: string; at: string | null; description?: string }[] = [
     { title: 'Assigned to you', at: d.assigned_at },

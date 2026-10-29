@@ -167,6 +167,12 @@ export type RiderDelivery = {
   pickup: PickupBlock;
   dropoff: DropoffBlock;
   customer: { name: string; phone: string };
+  /** Fleet vehicle dispatch assigned with this delivery (null: none recorded). */
+  vehicle?: { id: string; registration: string; vehicle_type: string; make: string; model: string; colour: string } | null;
+  /** Parcel bookings: picking up needs a count, both conditions and a photo (PickupCheckModal). */
+  pickup_check_required?: boolean;
+  pickup_expected_count?: number | null;
+  pickup_check?: PickupCheck | null;
   next_status: RiderStage | null;
   allowed_actions: RiderStage[];
   is_active: boolean;
@@ -188,6 +194,20 @@ export type RiderDelivery = {
   updated_at: string;
 };
 
+export type PackageCondition = 'excellent' | 'good' | 'fair' | 'damaged';
+
+/** What the rider found at pickup. */
+export type PickupCheck = {
+  package_count: number | null;
+  expected_count: number | null;
+  package_condition: PackageCondition | '';
+  packaging_condition: PackageCondition | '';
+  photo_urls: string[];
+  notes: string;
+  checked_by: string;
+  checked_at: string;
+};
+
 export type StageBody = {
   pod_photo_url?: string;
   delivery_code?: string;
@@ -197,6 +217,8 @@ export type StageBody = {
   eta_minutes?: number;
   /** Freezer deliveries: the installed unit's serial (must match the allocated unit). */
   unit_serial?: string;
+  /** picked_up: the pickup check (required for parcel bookings). */
+  pickup?: { package_count: number; package_condition: PackageCondition; packaging_condition: PackageCondition; photo_urls: string[]; notes: string };
 };
 
 export type ScanResult = RiderDelivery & { warning: string | null };
@@ -335,7 +357,7 @@ export const riderApi = baseApi.injectEndpoints({
 
     reportProblem: build.mutation<
       RiderDelivery & { issue_id: string },
-      { id: string; category: string; description: string; cannot_complete?: boolean; evidence_urls?: string[] }
+      { id: string; category: string; description: string; cannot_complete?: boolean; evidence_urls?: string[]; customer_contacted?: boolean | null }
     >({
       query: ({ id, ...body }) => ({
         url: `/logistics/rider/deliveries/${encodeURIComponent(id)}/problem/`,

@@ -16,7 +16,9 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import { PickupCheckModal } from '@/components/PickupCheckModal';
 import { SerialScanner } from '@/components/SerialScanner';
+import { uploadLocalFile } from '@/lib/upload';
 import {
   Button,
   Card,
@@ -106,6 +108,8 @@ export default function OrderDetail() {
   const [codeError, setCodeError] = useState<string>();
   const [nameError, setNameError] = useState<string>();
   const [confirmStage, setConfirmStage] = useState<RiderStage | null>(null);
+  // Parcel bookings: picking up goes through the pickup check.
+  const [showPickupCheck, setShowPickupCheck] = useState(false);
   const [deliveryCode, setDeliveryCode] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [podNote, setPodNote] = useState('');
@@ -120,6 +124,10 @@ export default function OrderDetail() {
   const [problemCategory, setProblemCategory] = useState<string>('customer_unavailable');
   const [problemDescription, setProblemDescription] = useState('');
   const [cannotComplete, setCannotComplete] = useState(false);
+  // Problem report: did the rider reach the customer, and photo evidence (camera, up to 3).
+  const [customerContacted, setCustomerContacted] = useState<boolean | null>(null);
+  const [evidenceUris, setEvidenceUris] = useState<string[]>([]);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
 
   if (isLoading) {
     return (
@@ -195,10 +203,15 @@ export default function OrderDetail() {
     }
   };
 
+  const askStage = (stage: RiderStage) => {
+    if (stage === 'picked_up' && delivery.pickup_check_required) setShowPickupCheck(true);
+    else setConfirmStage(stage);
+  };
+
   const onAdvancePress = () => {
     if (!nextStage) return;
     if (nextStage === 'delivered') setShowCompleteModal(true);
-    else setConfirmStage(nextStage);
+    else askStage(nextStage);
   };
 
   // From "assigned" the rider may skip the trip step if already at the store.
@@ -322,24 +335,46 @@ export default function OrderDetail() {
     }
   };
 
+  const addEvidencePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      toast.show('Camera access is needed to add a photo.', 'error');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7, exif: false });
+    if (result.canceled || !result.assets[0]?.uri) return;
+    setEvidenceUris((u) => [...u, result.assets[0]!.uri].slice(0, 3));
+  };
+
   const submitProblemReport = async () => {
     if (!problemDescription.trim() || problemDescription.trim().length < 3) {
       toast.show('Please describe the issue in detail', 'error');
       return;
     }
     try {
+      setUploadingEvidence(evidenceUris.length > 0);
+      const evidenceUrls: string[] = [];
+      for (const [n, uri] of evidenceUris.entries()) {
+        evidenceUrls.push(await uploadLocalFile(uri, { filename: `issue-${Date.now()}-${n + 1}.jpg`, contentType: 'image/jpeg' }));
+      }
+      setUploadingEvidence(false);
       await reportProblem({
         id: delivery.delivery_id,
         category: problemCategory,
         description: problemDescription.trim(),
         cannot_complete: cannotComplete,
+        evidence_urls: evidenceUrls,
+        customer_contacted: customerContacted,
       }).unwrap();
 
       setShowProblemModal(false);
       setProblemDescription('');
       setCannotComplete(false);
+      setCustomerContacted(null);
+      setEvidenceUris([]);
       toast.show('Reported — dispatch has been alerted', 'success');
     } catch (err) {
+      setUploadingEvidence(false);
       toast.show(apiErrorMessage(err, 'Could not report the problem. Try again.'), 'error');
     }
   };
@@ -466,7 +501,7 @@ export default function OrderDetail() {
                     label={freezer ? 'Already at the depot — confirm collection' : 'Already at the store — confirm pickup'}
                     variant="ghost"
                     size="md"
-                    onPress={() => setConfirmStage('picked_up')}
+                    onPress={() => askStage('picked_up')}
                     style={{ borderWidth: 1, borderColor: colors.border }}
                   />
                 )}
@@ -494,6 +529,11 @@ export default function OrderDetail() {
                 {delivery.pickup.instructions ? (
                   <Text variant="caption" tone="brand" style={{ marginTop: Spacing.xs }}>
                     Note: {delivery.pickup.instructions}
+                  </Text>
+                ) : null}
+                {delivery.vehicle ? (
+                  <Text variant="caption" tone="secondary" style={{ marginTop: Spacing.xs }}>
+                    Vehicle: {[delivery.vehicle.registration, [delivery.vehicle.make, delivery.vehicle.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ')}
                   </Text>
                 ) : null}
               </View>
@@ -854,6 +894,17 @@ export default function OrderDetail() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* ---- PICKUP CHECK (parcel bookings) ---- */}
+      {showPickupCheck ? (
+        <PickupCheckModal
+          visible
+          onClose={() => setShowPickupCheck(false)}
+          deliveryId={delivery.delivery_id}
+          expectedCount={delivery.pickup_expected_count ?? null}
+          onDone={() => setShowPickupCheck(false)}
+        />
+      ) : null}
+
       {/* ---- REPORT PROBLEM MODAL ---- */}
       <Modal visible={showProblemModal} animationType="slide" transparent>
         <KeyboardAvoidingView
@@ -909,6 +960,53 @@ export default function OrderDetail() {
                 onChangeText={setProblemDescription}
               />
 
+              <Text variant="label" tone="muted">
+                Did you reach the customer?
+              </Text>
+              <View style={styles.categoryGrid}>
+                {([
+                  [true, 'Yes, I spoke to them'],
+                  [false, "No, I couldn't reach them"],
+                ] as const).map(([value, label]) => (
+                  <Pressable
+                    key={String(value)}
+                    style={[
+                      styles.categoryChip,
+                      {
+                        backgroundColor: customerContacted === value ? colors.brandSoft : colors.surfaceAlt,
+                        borderColor: customerContacted === value ? colors.brand : colors.border,
+                      },
+                    ]}
+                    onPress={() => setCustomerContacted(customerContacted === value ? null : value)}
+                  >
+                    <Text
+                      variant="caption"
+                      style={{ color: customerContacted === value ? colors.brand : colors.text, fontWeight: customerContacted === value ? '600' : '400' }}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={{ gap: Spacing.xs }}>
+                <Text variant="label" tone="muted">
+                  Photos (optional, up to 3)
+                </Text>
+                {evidenceUris.length > 0 ? (
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                    {evidenceUris.map((uri) => (
+                      <Pressable key={uri} onPress={() => setEvidenceUris((u) => u.filter((x) => x !== uri))} accessibilityLabel="Remove photo">
+                        <Image source={{ uri }} style={{ width: 64, height: 64, borderRadius: Radius.sm }} contentFit="cover" />
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+                {evidenceUris.length < 3 ? (
+                  <Button label="Take a photo" variant="secondary" onPress={addEvidencePhoto} />
+                ) : null}
+              </View>
+
               <View style={styles.cannotCompleteRow}>
                 <View style={{ flex: 1 }}>
                   <Text variant="bodyStrong">Cannot complete delivery</Text>
@@ -920,8 +1018,8 @@ export default function OrderDetail() {
               </View>
 
               <Button
-                label={reportingProblem ? 'Submitting…' : 'Send Report to Dispatch'}
-                loading={reportingProblem}
+                label={uploadingEvidence ? 'Uploading photos…' : reportingProblem ? 'Submitting…' : 'Send Report to Dispatch'}
+                loading={reportingProblem || uploadingEvidence}
                 variant={cannotComplete ? 'danger' : 'primary'}
                 onPress={submitProblemReport}
                 style={{ marginTop: Spacing.sm }}

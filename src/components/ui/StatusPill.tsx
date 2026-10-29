@@ -19,6 +19,7 @@ export type DeliveryStatus =
   | 'delivered_with_issue'
   | 'disputed'
   | 'cancelled'
+  | 'returning'
   | 'returned'
   | 'failed';
 
@@ -34,6 +35,7 @@ export const StatusLabels: Record<DeliveryStatus, string> = {
   delivered_with_issue: 'Delivered · issue',
   disputed: 'Disputed',
   cancelled: 'Cancelled',
+  returning: 'Returning',
   returned: 'Returned',
   failed: 'Failed',
 };
@@ -63,6 +65,7 @@ export function StatusPill({
     delivered_with_issue: { fg: c.warning, bg: c.warningSoft },
     disputed: { fg: c.danger, bg: c.dangerSoft },
     cancelled: { fg: c.danger, bg: c.dangerSoft },
+    returning: { fg: c.textSecondary, bg: c.surfaceSunken },
     returned: { fg: c.textSecondary, bg: c.surfaceSunken },
     failed: { fg: c.danger, bg: c.dangerSoft },
   };
