@@ -3,7 +3,7 @@
  * same one Kool Konnect and Kool Logistics Web use), so one account works in
  * every app.
  *
- * Set EXPO_PUBLIC_API_BASE_URL in .env (e.g. https://kool-backend-node.onrender.com).
+ * Set EXPO_PUBLIC_API_BASE_URL in .env (e.g. https://kool-backend-node-frankfurt.onrender.com).
  * The `/api/v1` suffix is added when missing.
  *
  * Local development on a phone: `localhost` / `127.0.0.1` on the phone is the
